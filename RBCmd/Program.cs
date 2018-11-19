@@ -179,16 +179,13 @@ namespace RBCmd
 
             if (_fluentCommandLineParser.Object.CsvDirectory.IsNullOrEmpty() == false)
             {
-                CsvWriter csv = null;
-                StreamWriter sw1 = null;
-
                 if (Directory.Exists(_fluentCommandLineParser.Object.CsvDirectory) == false)
                 {
                     _logger.Warn($"'{_fluentCommandLineParser.Object.CsvDirectory} does not exist. Creating...'");
                     Directory.CreateDirectory(_fluentCommandLineParser.Object.CsvDirectory);
                 }
 
-                var outName = $"{DateTimeOffset.Now.ToString("yyyyMMddHHmmss")}_RBCmd_Output.csv";
+                var outName = $"{DateTimeOffset.Now:yyyyMMddHHmmss}_RBCmd_Output.csv";
                 var outFile = Path.Combine(_fluentCommandLineParser.Object.CsvDirectory, outName);
 
                 _fluentCommandLineParser.Object.CsvDirectory =
@@ -198,8 +195,8 @@ namespace RBCmd
 
                 try
                 {
-                    sw1 = new StreamWriter(outFile);
-                    csv = new CsvWriter(sw1);
+                    var sw1 = new StreamWriter(outFile);
+                    var csv = new CsvWriter(sw1);
 
                     csv.WriteHeader(typeof(CsvOut));
                     csv.NextRecord();
@@ -341,14 +338,16 @@ namespace RBCmd
                     fn = infoFileRecord.FileNameUnicode;
                 }
 
-                var csv = new CsvOut();
+                var csv = new CsvOut
+                {
+                    FileSize = infoFileRecord.FileSize,
+                    FileName = fn,
+                    SourceName = info.SourceName,
+                    DeletedOn = infoFileRecord.DeletedOn.ToUniversalTime()
+                        .ToString(_fluentCommandLineParser.Object.DateTimeFormat),
+                    FileType = "INFO2"
+                };
 
-                csv.FileSize = infoFileRecord.FileSize;
-                csv.FileName = fn;
-                csv.SourceName = info.SourceName;
-                csv.DeletedOn = infoFileRecord.DeletedOn.ToUniversalTime()
-                    .ToString(_fluentCommandLineParser.Object.DateTimeFormat);
-                csv.FileType = "INFO2";
 
                 _csvOuts.Add(csv);
 
@@ -372,17 +371,16 @@ namespace RBCmd
 
         private static void DisplayDollarI(DollarI di)
         {
-            var csv = new CsvOut();
-
-            csv.FileSize = di.FileSize;
-            csv.FileName = di.Filename;
-            csv.SourceName = di.SourceName;
-            csv.DeletedOn = di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat);
-            ;
-            csv.FileType = "$I";
+            var csv = new CsvOut
+            {
+                FileSize = di.FileSize,
+                FileName = di.Filename,
+                SourceName = di.SourceName,
+                DeletedOn = di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat),
+                FileType = "$I"
+            };
 
             _csvOuts.Add(csv);
-
 
             if (_fluentCommandLineParser.Object.Quiet)
             {
@@ -439,7 +437,7 @@ namespace RBCmd
         public string File { get; set; }
         public string Directory { get; set; }
 
-        public string JsonDirectory { get; set; }
+       // public string JsonDirectory { get; set; }
 
         public string CsvDirectory { get; set; }
 
