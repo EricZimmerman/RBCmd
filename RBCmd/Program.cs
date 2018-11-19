@@ -161,8 +161,7 @@ namespace RBCmd
             {
                 ProcessFile(file);
             }
-
-
+            
             sw.Stop();
 
             _logger.Info(
