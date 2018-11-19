@@ -4,17 +4,16 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProjectGuid>{87DC227B-9E16-4E11-89FD-3CEC38D61D61}</ProjectGuid>
-    <OutputType>Exe</OutputType>
-    <RootNamespace>RBCmd</RootNamespace>
-    <AssemblyName>RBCmd</AssemblyName>
+    <ProjectGuid>{5464C85A-A69F-4EC1-B3E4-ACB84FE83E6F}</ProjectGuid>
+    <OutputType>Library</OutputType>
+    <AppDesignerFolder>Properties</AppDesignerFolder>
+    <RootNamespace>RecycleBin.Test</RootNamespace>
+    <AssemblyName>RecycleBin.Test</AssemblyName>
     <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
-    <AutoGenerateBindingRedirects>true</AutoGenerateBindingRedirects>
     <Deterministic>true</Deterministic>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugSymbols>true</DebugSymbols>
     <DebugType>full</DebugType>
     <Optimize>false</Optimize>
@@ -22,20 +21,14 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <PlatformTarget>AnyCPU</PlatformTarget>
     <DebugType>pdbonly</DebugType>
     <Optimize>true</Optimize>
     <OutputPath>bin\Release\</OutputPath>
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
-    <Prefer32Bit>false</Prefer32Bit>
-  </PropertyGroup>
-  <PropertyGroup>
-    <ApplicationIcon>recycle.ico</ApplicationIcon>
   </PropertyGroup>
   <ItemGroup>
     <Reference Include="System" />
@@ -48,12 +41,8 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="CsvOut.cs" />
-    <Compile Include="Program.cs" />
+    <Compile Include="RecycleBinTest.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="App.config" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RecycleBin\RecycleBin.csproj">
@@ -62,30 +51,28 @@
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="AlphaFS">
-      <Version>2.2.6</Version>
+    <PackageReference Include="FluentAssertions">
+      <Version>5.5.1</Version>
     </PackageReference>
-    <PackageReference Include="Costura.Fody">
-      <Version>3.1.6</Version>
-    </PackageReference>
-    <PackageReference Include="CsvHelper">
-      <Version>9.1.0</Version>
-    </PackageReference>
-    <PackageReference Include="Exceptionless">
-      <Version>4.3.2012</Version>
-    </PackageReference>
-    <PackageReference Include="FluentCommandLineParser">
-      <Version>1.4.3</Version>
-    </PackageReference>
-    <PackageReference Include="NLog">
-      <Version>4.5.11</Version>
-    </PackageReference>
-    <PackageReference Include="ServiceStack.Text">
-      <Version>5.4.0</Version>
+    <PackageReference Include="NUnit">
+      <Version>3.11.0</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>
-    <Content Include="recycle.ico" />
+    <None Include="TestFiles\Win10 - DEFCON 2018 Desktop\%24I2JRX90" />
+    <None Include="TestFiles\Win10 - DEFCON 2018 Desktop\%24IFATB0K" />
+    <None Include="TestFiles\Win7 - nfury\%24I6SODDB" />
+    <None Include="TestFiles\Win7 - nromanoff\%24IPFXZSB" />
+    <None Include="TestFiles\Win7 - nromanoff\%24ISEBKEC.zip" />
+    <None Include="TestFiles\Win8.1 - Donald Blake\%24I3VPA17" />
+    <None Include="TestFiles\Win8.1 - Donald Blake\%24IEMAANA" />
+    <None Include="TestFiles\Win8.1 - Donald Blake\%24IG1VEXX.xls" />
+    <None Include="TestFiles\Win8.1 - Donald Blake\%24ISFWPA9.xls" />
+    <None Include="TestFiles\WinXp - mueller1\INFO2" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="TestFiles\Win7 - nfury\%24ID5HSV3.exe" />
+    <Content Include="TestFiles\Win7 - nfury\%24IZI9VH9.exe" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
