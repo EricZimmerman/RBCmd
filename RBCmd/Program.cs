@@ -358,7 +358,7 @@ namespace RBCmd
 
                 _logger.Info($"Index: {infoFileRecord.Index}");
                 _logger.Info($"Drive #: {infoFileRecord.DriveNumber}");
-                _logger.Info($"File size: 0x{infoFileRecord.FileSize:X}");
+                _logger.Info($"File size: {infoFileRecord.FileSize}");
 
                 _logger.Info($"File name: {fn}");
 
@@ -399,7 +399,7 @@ namespace RBCmd
             _logger.Info("");
             _logger.Info($"Version: {di.Format} ({os})");
 
-            _logger.Info($"File size: 0x{di.FileSize:X}");
+            _logger.Info($"File size: {di.FileSize}");
             _logger.Info($"File name: {di.Filename}");
             _logger.Fatal(
                 $"Deleted on: {di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat)}");
