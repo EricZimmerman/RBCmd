@@ -69,6 +69,7 @@
     <None Include="TestFiles\Win8.1 - Donald Blake\%24IG1VEXX.xls" />
     <None Include="TestFiles\Win8.1 - Donald Blake\%24ISFWPA9.xls" />
     <None Include="TestFiles\WinXp - mueller1\INFO2" />
+    <None Include="TestFiles\WinXp - mueller1\INFO2_MultiFiles" />
   </ItemGroup>
   <ItemGroup>
     <Content Include="TestFiles\Win7 - nfury\%24ID5HSV3.exe" />
