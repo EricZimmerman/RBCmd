@@ -218,6 +218,20 @@ namespace RBCmd
             }
         }
 
+           public static string BytesToString(long byteCount)
+        {
+            string[] suf = {"B", "KB", "MB", "GB", "TB", "PB", "EB"}; //Longs run out around EB
+            if (byteCount == 0)
+            {
+                return "0" + suf[0];
+            }
+
+            var bytes = Math.Abs(byteCount);
+            var place = Convert.ToInt32(Math.Floor(Math.Log(bytes, 1024)));
+            var num = Math.Round(bytes / Math.Pow(1024, place), 1);
+            return $"{Math.Sign(byteCount) * num}{suf[place]}";
+        }
+
         private static void ProcessFile(string file)
         {
             try
@@ -358,7 +372,7 @@ namespace RBCmd
 
                 _logger.Info($"Index: {infoFileRecord.Index}");
                 _logger.Info($"Drive #: {infoFileRecord.DriveNumber}");
-                _logger.Info($"File size: {infoFileRecord.FileSize}");
+                _logger.Info($"File size: {infoFileRecord.FileSize} ({BytesToString(infoFileRecord.FileSize)})");
 
                 _logger.Info($"File name: {fn}");
 
@@ -399,7 +413,7 @@ namespace RBCmd
             _logger.Info("");
             _logger.Info($"Version: {di.Format} ({os})");
 
-            _logger.Info($"File size: {di.FileSize}");
+            _logger.Info($"File size: {di.FileSize} ({BytesToString(di.FileSize)})");
             _logger.Info($"File name: {di.Filename}");
             _logger.Fatal(
                 $"Deleted on: {di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat)}");
