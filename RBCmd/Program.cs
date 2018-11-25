@@ -55,7 +55,12 @@ namespace RBCmd
             _fluentCommandLineParser.Setup(arg => arg.CsvDirectory)
                 .As("csv")
                 .WithDescription(
-                    "Directory to save CSV formatted results to. Be sure to include the full path in double quotes\r\n");
+                    "Directory to save CSV formatted results to. Be sure to include the full path in double quotes");
+
+            _fluentCommandLineParser.Setup(arg => arg.CsvName)
+                .As("csvf")
+                .WithDescription("File name to save CSV formatted results to. When present, overrides default name\r\n");
+
 
             _fluentCommandLineParser.Setup(arg => arg.Quiet)
                 .As('q')
@@ -186,6 +191,12 @@ namespace RBCmd
                 }
 
                 var outName = $"{DateTimeOffset.Now:yyyyMMddHHmmss}_RBCmd_Output.csv";
+
+                if (_fluentCommandLineParser.Object.CsvName.IsNullOrEmpty() == false)
+                {
+                    outName = Path.GetFileName(_fluentCommandLineParser.Object.CsvName);
+                }
+
                 var outFile = Path.Combine(_fluentCommandLineParser.Object.CsvDirectory, outName);
 
                 _fluentCommandLineParser.Object.CsvDirectory =
@@ -454,6 +465,7 @@ namespace RBCmd
        // public string JsonDirectory { get; set; }
 
         public string CsvDirectory { get; set; }
+        public string CsvName { get; set; }
 
         public string DateTimeFormat { get; set; }
 
