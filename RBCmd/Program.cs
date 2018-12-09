@@ -182,7 +182,7 @@ namespace RBCmd
                 }
             }
 
-            if (_fluentCommandLineParser.Object.CsvDirectory.IsNullOrEmpty() == false)
+            if (_fluentCommandLineParser.Object.CsvDirectory.IsNullOrEmpty() == false && files.Count > 0)
             {
                 if (Directory.Exists(_fluentCommandLineParser.Object.CsvDirectory) == false)
                 {
