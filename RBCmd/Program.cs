@@ -432,6 +432,10 @@ namespace RBCmd
 
         private static void SetupNLog()
         {
+            if (File.Exists("Nlog.config"))
+            {
+                return;
+            }
             var config = new LoggingConfiguration();
             var loglevel = LogLevel.Info;
 
