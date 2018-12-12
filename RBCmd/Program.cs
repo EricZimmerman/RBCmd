@@ -430,9 +430,11 @@ namespace RBCmd
                 $"Deleted on: {di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat)}");
         }
 
+        private static readonly string BaseDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
+
         private static void SetupNLog()
         {
-            if (File.Exists("Nlog.config"))
+            if (File.Exists( Path.Combine(BaseDirectory,"Nlog.config")))
             {
                 return;
             }
