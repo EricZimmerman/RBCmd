@@ -346,10 +346,6 @@ namespace RBCmd
 
                 _logger.Info("");
                 _logger.Info($"Version: {info.Version}");
-                //_logger.Info($"File Entry Size: 0x{info.FileEntrySize:X}");
-//            _logger.Info($"Unknown 1: 0x{info.Unknown1:X}");
-//            _logger.Info($"Unknown 2: 0x{info.Unknown2:X}");
-//            _logger.Info($"Unknown 3: 0x{info.Unknown3:X}");
 
                 _logger.Info("");
                 _logger.Warn("File records");
@@ -407,6 +403,21 @@ namespace RBCmd
 
             _csvOuts.Add(csv);
 
+           
+                foreach (var diDirectoryFile in di.DirectoryFiles)
+                {
+                    csv = new CsvOut
+                    {
+                        FileSize = diDirectoryFile.FileSize,
+                        FileName = diDirectoryFile.FileName,
+                        SourceName = di.SourceName,
+                        DeletedOn = di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat),
+                        FileType = "$I"
+                    };
+
+                    _csvOuts.Add(csv); 
+                }
+
             if (_fluentCommandLineParser.Object.Quiet)
             {
                 return;
@@ -428,6 +439,19 @@ namespace RBCmd
             _logger.Info($"File name: {di.Filename}");
             _logger.Fatal(
                 $"Deleted on: {di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat)}");
+
+
+            if (di.DirectoryFiles.Count > 0)
+            {
+                _logger.Info($"\r\nSubfiles in '{di.Filename}'");
+            }
+
+            foreach (var diDirectoryFile in di.DirectoryFiles)
+            {
+                _logger.Info($"File name: {diDirectoryFile.FileName} Size: {diDirectoryFile.FileSize} ({BytesToString(diDirectoryFile.FileSize)})");
+                
+
+            }
         }
 
         private static readonly string BaseDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
