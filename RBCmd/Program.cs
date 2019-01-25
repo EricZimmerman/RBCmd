@@ -440,17 +440,14 @@ namespace RBCmd
             _logger.Fatal(
                 $"Deleted on: {di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat)}");
 
-
             if (di.DirectoryFiles.Count > 0)
             {
-                _logger.Info($"\r\nSubfiles in '{di.Filename}'");
+                _logger.Warn($"\r\nSubfiles in '{di.Filename}'");
             }
 
             foreach (var diDirectoryFile in di.DirectoryFiles)
             {
                 _logger.Info($"File name: {diDirectoryFile.FileName} Size: {diDirectoryFile.FileSize} ({BytesToString(diDirectoryFile.FileSize)})");
-                
-
             }
         }
 
