@@ -6,6 +6,7 @@ using System.Linq;
 using System.Reflection;
 using System.Security.Principal;
 using Alphaleonis.Win32.Filesystem;
+using Alphaleonis.Win32.Security;
 using CsvHelper;
 using Exceptionless;
 using Fclp;
@@ -71,8 +72,16 @@ namespace RBCmd
             _fluentCommandLineParser.Setup(arg => arg.DateTimeFormat)
                 .As("dt")
                 .WithDescription(
-                    "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss")
+                    "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss\r\n")
                 .SetDefault(_preciseTimeFormat);
+
+            _fluentCommandLineParser.Setup(arg => arg.Debug)
+                .As("debug")
+                .WithDescription("Show debug information during processing").SetDefault(false);
+
+            _fluentCommandLineParser.Setup(arg => arg.Trace)
+                .As("trace")
+                .WithDescription("Show trace information during processing\r\n").SetDefault(false);
 
             var header =
                 $"RBCmd version {Assembly.GetExecutingAssembly().GetName().Version}" +
@@ -137,6 +146,28 @@ namespace RBCmd
             if (IsAdministrator() == false)
             {
                 _logger.Fatal("Warning: Administrator privileges not found!\r\n");
+            }
+
+            if (_fluentCommandLineParser.Object.Debug)
+            {
+                foreach (var r in LogManager.Configuration.LoggingRules)
+                {
+                    r.EnableLoggingForLevel(LogLevel.Debug);
+                }
+
+                LogManager.ReconfigExistingLoggers();
+                _logger.Debug("Enabled debug messages...");
+            }
+
+            if (_fluentCommandLineParser.Object.Trace)
+            {
+                foreach (var r in LogManager.Configuration.LoggingRules)
+                {
+                    r.EnableLoggingForLevel(LogLevel.Trace);
+                }
+
+                LogManager.ReconfigExistingLoggers();
+                _logger.Trace("Enabled trace messages...");
             }
 
             _csvOuts = new List<CsvOut>();
@@ -291,49 +322,55 @@ namespace RBCmd
         {
             var files = new List<string>();
 
-            var filters = new DirectoryEnumerationFilters
+            Privilege[] privs = {Privilege.EnableDelegation, Privilege.Impersonate, Privilege.Tcb};
+            using (new PrivilegeEnabler(Privilege.Backup, privs))
             {
-                // Used to abort the enumeration.
-                // CancellationToken = cancelSource.Token,
 
-                // Filter to decide whether to recurse into subdirectories.
-                RecursionFilter = entryInfo =>
+                var filters = new DirectoryEnumerationFilters
                 {
-                    if (!entryInfo.IsMountPoint && !entryInfo.IsSymbolicLink)
+                    // Used to abort the enumeration.
+                    // CancellationToken = cancelSource.Token,
+
+                    // Filter to decide whether to recurse into subdirectories.
+                    RecursionFilter = entryInfo =>
                     {
-                        return true;
-                    }
+                        if (!entryInfo.IsMountPoint && !entryInfo.IsSymbolicLink)
+                        {
+                            return true;
+                        }
 
-                    return false;
-                },
+                        return false;
+                    },
 
-                // Filter to process Exception handling.
-                ErrorFilter = delegate(int errorCode, string errorMessage, string pathProcessed)
-                {
-                    _logger.Error($"Error accessing '{pathProcessed}'. Error: {errorMessage}");
-
-                    // Return true to continue, false to throw the Exception.
-                    return true;
-                },
-
-                // Filter to in-/exclude file system entries during the enumeration.
-                InclusionFilter = entryInfo =>
-                {
-                    if (entryInfo.FileName == "INFO2" || entryInfo.FileName.StartsWith("$I"))
+                    // Filter to process Exception handling.
+                    ErrorFilter = delegate(int errorCode, string errorMessage, string pathProcessed)
                     {
-                        _logger.Debug($"Found match: '{entryInfo.FullPath}'");
+                        _logger.Error($"Error accessing '{pathProcessed}'. Error: {errorMessage}");
+
+                        // Return true to continue, false to throw the Exception.
                         return true;
+                    },
+
+                    // Filter to in-/exclude file system entries during the enumeration.
+                    InclusionFilter = entryInfo =>
+                    {
+                        if (entryInfo.FileName == "INFO2" || entryInfo.FileName.StartsWith("$I"))
+                        {
+                            _logger.Debug($"Found match: '{entryInfo.FullPath}'");
+                            return true;
+                        }
+
+                        return false;
                     }
+                };
 
-                    return false;
-                }
-            };
+                var dirEnumOptions =
+                    DirectoryEnumerationOptions.Files | DirectoryEnumerationOptions.Recursive | DirectoryEnumerationOptions.ContinueOnException |
+                    DirectoryEnumerationOptions.SkipReparsePoints;
 
-            var dirEnumOptions =
-                DirectoryEnumerationOptions.Files | DirectoryEnumerationOptions.Recursive |
-                DirectoryEnumerationOptions.SkipReparsePoints;
+                files.AddRange(Directory.EnumerateFileSystemEntryInfos<string>(dir, dirEnumOptions, filters).Where(File.Exists));
 
-            files.AddRange(Directory.EnumerateFileSystemEntryInfos<string>(dir, dirEnumOptions, filters));
+            }
 
             return files;
         }
@@ -497,5 +534,8 @@ namespace RBCmd
         public string DateTimeFormat { get; set; }
 
         public bool Quiet { get; set; }
+
+        public bool Debug { get; set; }
+        public bool Trace { get; set; }
     }
 }
