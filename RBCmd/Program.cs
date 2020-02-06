@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -238,7 +239,7 @@ namespace RBCmd
                 try
                 {
                     var sw1 = new StreamWriter(outFile);
-                    var csv = new CsvWriter(sw1);
+                    var csv = new CsvWriter(sw1,CultureInfo.InvariantCulture);
 
                     csv.WriteHeader(typeof(CsvOut));
                     csv.NextRecord();
