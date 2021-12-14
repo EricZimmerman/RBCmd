@@ -1,21 +1,22 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net461</TargetFramework>
+    <TargetFrameworks>netstandard2.0;net6.0</TargetFrameworks>
     <AssemblyTitle>RecycleBin.Test</AssemblyTitle>
     <Product>RecycleBin.Test</Product>
-    <Copyright>Copyright ©  2018</Copyright>
+    <Copyright>Copyright © 2022</Copyright>
+    <LangVersion>10</LangVersion>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.*" />
     <PackageReference Include="Microsoft.CSharp" Version="4.*" />
-    <PackageReference Include="System.Net.Http" Version="4.*" />
+    
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\RecycleBin\RecycleBin.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="5.10.3" />
-    <PackageReference Include="NUnit" Version="3.13.1" />
+    <PackageReference Include="FluentAssertions" Version="6.2.0" />
+    <PackageReference Include="NUnit" Version="3.13.2" />
   </ItemGroup>
   <ItemGroup>
     <None Include="TestFiles\Win10 - DEFCON 2018 Desktop\%24I2JRX90" />

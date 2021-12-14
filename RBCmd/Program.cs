@@ -1,21 +1,27 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.CommandLine;
+using System.CommandLine.Help;
+using System.CommandLine.NamingConventionBinder;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Principal;
+using System.Threading.Tasks;
 using Alphaleonis.Win32.Filesystem;
 using Alphaleonis.Win32.Security;
-using CsvHelper;
+
 using Exceptionless;
-using Fclp;
-using Fclp.Internals.Extensions;
+
 using NLog;
 using NLog.Config;
 using NLog.Targets;
 using RecycleBin;
+using ServiceStack;
+using CsvWriter = CsvHelper.CsvWriter;
 using Directory = Alphaleonis.Win32.Filesystem.Directory;
 using File = Alphaleonis.Win32.Filesystem.File;
 using Path = Alphaleonis.Win32.Filesystem.Path;
@@ -26,14 +32,27 @@ namespace RBCmd
     {
         private static Logger _logger;
 
-        private static readonly string _preciseTimeFormat = "yyyy-MM-dd HH:mm:ss.fffffff";
+     
 
-        private static FluentCommandLineParser<ApplicationArguments> _fluentCommandLineParser;
 
         private static List<string> _failedFiles;
         private static List<CsvOut> _csvOuts;
+        
+        private static string Header =
+            $"RBCmd version {Assembly.GetExecutingAssembly().GetName().Version}" +
+            "\r\n\r\nAuthor: Eric Zimmerman (saericzimmerman@gmail.com)" +
+            "\r\nhttps://github.com/EricZimmerman/RBCmd";
 
-        private static void Main(string[] args)
+
+        private static string Footer = @"Examples: RBCmd.exe -f ""C:\Temp\INFO2""" + "\r\n\t " +
+                     @"   RBCmd.exe -f ""C:\Temp\$I3VPA17"" --csv ""D:\csvOutput"" " + "\r\n\t " +
+                     @"   RBCmd.exe -d ""C:\Temp"" --csv ""c:\temp"" " + "\r\n\t " +
+                     "\r\n\t" +
+                     "    Short options (single letter) are prefixed with a single dash. Long commands are prefixed with two dashes\r\n";
+
+        private static RootCommand _rootCommand;
+
+        private static async Task Main(string[] args)
         {
             ExceptionlessClient.Default.Startup("IudF6lFjzvdMldPtlYyPmSMHnSEL89n2WmYbCHoy");
 
@@ -41,106 +60,72 @@ namespace RBCmd
 
             _logger = LogManager.GetCurrentClassLogger();
 
-            _fluentCommandLineParser = new FluentCommandLineParser<ApplicationArguments>
+            _rootCommand = new RootCommand
             {
-                IsCaseSensitive = false
+                new Option<string>(
+                    "-f",
+                    "File to process ($MFT | $J | $Boot | $SDS). Required"),
+
+                new Option<string>(
+                    "-m",
+                    "$MFT file to use when -f points to a $J file (Use this to resolve parent path in $J CSV output).\r\n"),
+
+                new Option<string>(
+                    "--json",
+                    "Directory to save JSON formatted results to. This or --csv required unless --de or --body is specified"),
+
+                new Option<string>(
+                    "--jsonf",
+                    "File name to save JSON formatted results to. When present, overrides default name"),
+
+                new Option<string>(
+                    "--csv",
+                    "Directory to save CSV formatted results to. This or --json required unless --de or --body is specified"),
+
+                new Option<string>(
+                    "--csvf",
+                    "File name to save CSV formatted results to. When present, overrides default name\r\n"),
+
             };
+            
+            _rootCommand.Description = Header + "\r\n\r\n" + Footer;
 
-            _fluentCommandLineParser.Setup(arg => arg.File)
-                .As('f')
-                .WithDescription("File to process. Either this or -d is required");
+            _rootCommand.Handler = CommandHandler.Create(DoWork);
 
-            _fluentCommandLineParser.Setup(arg => arg.Directory)
-                .As('d')
-                .WithDescription("Directory to recursively process. Either this or -f is required");
+            await _rootCommand.InvokeAsync(args);
 
-            _fluentCommandLineParser.Setup(arg => arg.CsvDirectory)
-                .As("csv")
-                .WithDescription(
-                    "Directory to save CSV formatted results to. Be sure to include the full path in double quotes");
+        }
 
-            _fluentCommandLineParser.Setup(arg => arg.CsvName)
-                .As("csvf")
-                .WithDescription("File name to save CSV formatted results to. When present, overrides default name\r\n");
+        private static void DoWork(string f, string d, string csv, string csvf, bool q, string dt, bool debug, bool trace)
+        {
 
-
-            _fluentCommandLineParser.Setup(arg => arg.Quiet)
-                .As('q')
-                .WithDescription(
-                    "Only show the filename being processed vs all output. Useful to speed up exporting to json and/or csv\r\n")
-                .SetDefault(false);
-
-            _fluentCommandLineParser.Setup(arg => arg.DateTimeFormat)
-                .As("dt")
-                .WithDescription(
-                    "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss\r\n")
-                .SetDefault(_preciseTimeFormat);
-
-            _fluentCommandLineParser.Setup(arg => arg.Debug)
-                .As("debug")
-                .WithDescription("Show debug information during processing").SetDefault(false);
-
-            _fluentCommandLineParser.Setup(arg => arg.Trace)
-                .As("trace")
-                .WithDescription("Show trace information during processing\r\n").SetDefault(false);
-
-            var header =
-                $"RBCmd version {Assembly.GetExecutingAssembly().GetName().Version}" +
-                "\r\n\r\nAuthor: Eric Zimmerman (saericzimmerman@gmail.com)" +
-                "\r\nhttps://github.com/EricZimmerman/RBCmd";
-
-
-            var footer = @"Examples: RBCmd.exe -f ""C:\Temp\INFO2""" + "\r\n\t " +
-                         @" RBCmd.exe -f ""C:\Temp\$I3VPA17"" --csv ""D:\csvOutput"" " + "\r\n\t " +
-                         @" RBCmd.exe -d ""C:\Temp"" --csv ""c:\temp"" " + "\r\n\t " +
-                         "\r\n\t" +
-                         "  Short options (single letter) are prefixed with a single dash. Long commands are prefixed with two dashes\r\n";
-
-            _fluentCommandLineParser.SetupHelp("?", "help")
-                .WithHeader(header)
-                .Callback(text => _logger.Info(text + "\r\n" + footer));
-
-            var result = _fluentCommandLineParser.Parse(args);
-
-            if (result.HelpCalled)
+            if (f.IsNullOrEmpty() &&
+                d.IsNullOrEmpty())
             {
-                return;
-            }
+                var helpBld = new HelpBuilder(LocalizationResources.Instance, Console.WindowWidth);
+                var hc = new HelpContext(helpBld, _rootCommand, Console.Out);
 
-            if (result.HasErrors)
-            {
-                _logger.Error("");
-                _logger.Error(result.ErrorText);
-
-                _fluentCommandLineParser.HelpOption.ShowHelp(_fluentCommandLineParser.Options);
-
-                return;
-            }
-
-            if (_fluentCommandLineParser.Object.File.IsNullOrEmpty() &&
-                _fluentCommandLineParser.Object.Directory.IsNullOrEmpty())
-            {
-                _fluentCommandLineParser.HelpOption.ShowHelp(_fluentCommandLineParser.Options);
+                helpBld.Write(hc);
 
                 _logger.Warn("Either -f or -d is required. Exiting");
                 return;
             }
 
-            if (_fluentCommandLineParser.Object.File.IsNullOrEmpty() == false &&
-                !File.Exists(_fluentCommandLineParser.Object.File))
+            if (f.IsNullOrEmpty() == false &&
+                !File.Exists(f))
             {
-                _logger.Warn($"File '{_fluentCommandLineParser.Object.File}' not found. Exiting");
+                _logger.Warn($"File '{f}' not found. Exiting");
                 return;
             }
 
-            if (_fluentCommandLineParser.Object.Directory.IsNullOrEmpty() == false &&
-                !Directory.Exists(_fluentCommandLineParser.Object.Directory))
+            if (d.IsNullOrEmpty() == false &&
+                !Directory.Exists(d))
             {
-                _logger.Warn($"Directory '{_fluentCommandLineParser.Object.Directory}' not found. Exiting");
+                _logger.Warn($"Directory '{d}' not found. Exiting");
                 return;
             }
 
-            _logger.Info(header);
+            _logger.Info(Header);
             _logger.Info("");
             _logger.Info($"Command line: {string.Join(" ", Environment.GetCommandLineArgs().Skip(1))}\r\n");
 
@@ -149,7 +134,7 @@ namespace RBCmd
                 _logger.Fatal("Warning: Administrator privileges not found!\r\n");
             }
 
-            if (_fluentCommandLineParser.Object.Debug)
+            if (debug)
             {
                 foreach (var r in LogManager.Configuration.LoggingRules)
                 {
@@ -160,7 +145,7 @@ namespace RBCmd
                 _logger.Debug("Enabled debug messages...");
             }
 
-            if (_fluentCommandLineParser.Object.Trace)
+            if (trace)
             {
                 foreach (var r in LogManager.Configuration.LoggingRules)
                 {
@@ -179,24 +164,24 @@ namespace RBCmd
             var sw = new Stopwatch();
             sw.Start();
 
-            if (_fluentCommandLineParser.Object.File?.Length > 0)
+            if (f?.Length > 0)
             {
               
-                files.Add(_fluentCommandLineParser.Object.File);
+                files.Add(f);
             }
             else
             {
-                if (_fluentCommandLineParser.Object.Quiet)
+                if (q)
                 {
                     _logger.Info("");
                 }
 
-                files = GetRecycleBinFiles(_fluentCommandLineParser.Object.Directory);
+                files = GetRecycleBinFiles(d);
             }
 
             foreach (var file in files)
             {
-                ProcessFile(file);
+                ProcessFile(file,q,dt);
             }
             
             sw.Stop();
@@ -214,40 +199,43 @@ namespace RBCmd
                 }
             }
 
-            if (_fluentCommandLineParser.Object.CsvDirectory.IsNullOrEmpty() == false && files.Count > 0)
+            if (csv.IsNullOrEmpty() == false && files.Count > 0)
             {
-                if (Directory.Exists(_fluentCommandLineParser.Object.CsvDirectory) == false)
+                if (Directory.Exists(csv) == false)
                 {
-                    _logger.Warn($"'{_fluentCommandLineParser.Object.CsvDirectory} does not exist. Creating...'");
-                    Directory.CreateDirectory(_fluentCommandLineParser.Object.CsvDirectory);
+                    _logger.Warn($"'{csv} does not exist. Creating...'");
+                    Directory.CreateDirectory(csv);
                 }
 
                 var outName = $"{DateTimeOffset.Now:yyyyMMddHHmmss}_RBCmd_Output.csv";
 
-                if (_fluentCommandLineParser.Object.CsvName.IsNullOrEmpty() == false)
+                if (csvf.IsNullOrEmpty() == false)
                 {
-                    outName = Path.GetFileName(_fluentCommandLineParser.Object.CsvName);
+                    outName = Path.GetFileName(csvf);
                 }
 
-                var outFile = Path.Combine(_fluentCommandLineParser.Object.CsvDirectory, outName);
+             
+                
+                var outFile = Path.Combine(csv, outName);
 
-                _fluentCommandLineParser.Object.CsvDirectory =
+                outFile =
                     Path.GetFullPath(outFile);
+              
                 _logger.Warn(
                     $"CSV output will be saved to '{Path.GetFullPath(outFile)}'");
 
                 try
                 {
                     var sw1 = new StreamWriter(outFile);
-                    var csv = new CsvWriter(sw1,CultureInfo.InvariantCulture);
+                    var csvWriter = new CsvWriter(sw1,CultureInfo.InvariantCulture);
 
-                    csv.WriteHeader(typeof(CsvOut));
-                    csv.NextRecord();
+                    csvWriter.WriteHeader(typeof(CsvOut));
+                    csvWriter.NextRecord();
 
                     foreach (var csvOut in _csvOuts)
                     {
-                        csv.WriteRecord(csvOut);
-                        csv.NextRecord();
+                        csvWriter.WriteRecord(csvOut);
+                        csvWriter.NextRecord();
                     }
 
                     sw1.Flush();
@@ -260,7 +248,7 @@ namespace RBCmd
                 }
             }
         }
-
+        
            public static string BytesToString(long byteCount)
         {
             string[] suf = {"B", "KB", "MB", "GB", "TB", "PB", "EB"}; //Longs run out around EB
@@ -275,7 +263,7 @@ namespace RBCmd
             return $"{Math.Sign(byteCount) * num}{suf[place]}";
         }
 
-        private static void ProcessFile(string file)
+        private static void ProcessFile(string file, bool q, string dt)
         {
             try
             {
@@ -285,13 +273,13 @@ namespace RBCmd
                 {
                     var di = new DollarI(raw, file);
 
-                    DisplayDollarI(di);
+                    DisplayDollarI(di,dt,q);
                 }
                 else if (raw[0] == 5)
                 {
                     var info = new Info2(raw, file);
 
-                    DisplayInfo2(info);
+                    DisplayInfo2(info,q,dt);
                 }
                 else
                 {
@@ -300,7 +288,7 @@ namespace RBCmd
                     _failedFiles.Add(file);
                 }
 
-                if (_fluentCommandLineParser.Object.Quiet == false)
+                if (q == false)
                 {
                     _logger.Info("");
                 }
@@ -308,14 +296,14 @@ namespace RBCmd
             catch (UnauthorizedAccessException ua)
             {
                 _logger.Error(
-                    $"Unable to access '{_fluentCommandLineParser.Object.File}'. Are you running as an administrator? Error: {ua.Message}");
+                    $"Unable to access '{file}'. Are you running as an administrator? Error: {ua.Message}");
                 _failedFiles.Add(file);
             }
             catch (Exception ex)
             {
                 _failedFiles.Add(file);
                 _logger.Error(
-                    $"Error processing file '{_fluentCommandLineParser.Object.File}' Please send it to saericzimmerman@gmail.com. Error: {ex.Message}");
+                    $"Error processing file '{file}' Please send it to saericzimmerman@gmail.com. Error: {ex.Message}");
             }
         }
 
@@ -376,9 +364,9 @@ namespace RBCmd
             return files;
         }
 
-        private static void DisplayInfo2(Info2 info)
+        private static void DisplayInfo2(Info2 info, bool q, string dt)
         {
-            if (_fluentCommandLineParser.Object.Quiet == false)
+            if (q == false)
             {
                 _logger.Warn($"Source file: {info.SourceName}");
 
@@ -403,14 +391,14 @@ namespace RBCmd
                     FileName = fn,
                     SourceName = info.SourceName,
                     DeletedOn = infoFileRecord.DeletedOn.ToUniversalTime()
-                        .ToString(_fluentCommandLineParser.Object.DateTimeFormat),
+                        .ToString(dt),
                     FileType = "INFO2"
                 };
 
 
                 _csvOuts.Add(csv);
 
-                if (_fluentCommandLineParser.Object.Quiet)
+                if (q)
                 {
                     continue;
                 }
@@ -422,20 +410,20 @@ namespace RBCmd
                 _logger.Info($"File name: {fn}");
 
                 _logger.Fatal(
-                    $"Deleted on: {infoFileRecord.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat)}");
+                    $"Deleted on: {infoFileRecord.DeletedOn.ToUniversalTime().ToString(dt)}");
 
                 _logger.Info("");
             }
         }
 
-        private static void DisplayDollarI(DollarI di)
+        private static void DisplayDollarI(DollarI di, string dt, bool q)
         {
             var csv = new CsvOut
             {
                 FileSize = di.FileSize,
                 FileName = di.Filename,
                 SourceName = di.SourceName,
-                DeletedOn = di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat),
+                DeletedOn = di.DeletedOn.ToUniversalTime().ToString(dt),
                 FileType = "$I"
             };
 
@@ -449,14 +437,14 @@ namespace RBCmd
                         FileSize = diDirectoryFile.FileSize,
                         FileName = diDirectoryFile.FileName,
                         SourceName = di.SourceName,
-                        DeletedOn = di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat),
+                        DeletedOn = di.DeletedOn.ToUniversalTime().ToString(dt),
                         FileType = "$I"
                     };
 
                     _csvOuts.Add(csv); 
                 }
 
-            if (_fluentCommandLineParser.Object.Quiet)
+            if (q)
             {
                 return;
             }
@@ -476,7 +464,7 @@ namespace RBCmd
             _logger.Info($"File size: {di.FileSize} ({BytesToString(di.FileSize)})");
             _logger.Info($"File name: {di.Filename}");
             _logger.Fatal(
-                $"Deleted on: {di.DeletedOn.ToUniversalTime().ToString(_fluentCommandLineParser.Object.DateTimeFormat)}");
+                $"Deleted on: {di.DeletedOn.ToUniversalTime().ToString(dt)}");
 
             if (di.DirectoryFiles.Count > 0)
             {
@@ -516,27 +504,15 @@ namespace RBCmd
 
         public static bool IsAdministrator()
         {
+            if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
+            {
+                return true;
+            }
             var identity = WindowsIdentity.GetCurrent();
             var principal = new WindowsPrincipal(identity);
             return principal.IsInRole(WindowsBuiltInRole.Administrator);
         }
     }
 
-    internal class ApplicationArguments
-    {
-        public string File { get; set; }
-        public string Directory { get; set; }
-
-       // public string JsonDirectory { get; set; }
-
-        public string CsvDirectory { get; set; }
-        public string CsvName { get; set; }
-
-        public string DateTimeFormat { get; set; }
-
-        public bool Quiet { get; set; }
-
-        public bool Debug { get; set; }
-        public bool Trace { get; set; }
-    }
+    
 }
