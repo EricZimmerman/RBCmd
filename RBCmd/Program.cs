@@ -32,9 +32,6 @@ namespace RBCmd
     {
         private static Logger _logger;
 
-     
-
-
         private static List<string> _failedFiles;
         private static List<CsvOut> _csvOuts;
         
@@ -166,7 +163,6 @@ namespace RBCmd
 
             if (f?.Length > 0)
             {
-              
                 files.Add(f);
             }
             else
@@ -314,7 +310,6 @@ namespace RBCmd
             Privilege[] privs = {Privilege.EnableDelegation, Privilege.Impersonate, Privilege.Tcb};
             using (new PrivilegeEnabler(Privilege.Backup, privs))
             {
-
                 var filters = new DirectoryEnumerationFilters
                 {
                     // Used to abort the enumeration.
