@@ -24,6 +24,7 @@ using File = Alphaleonis.Win32.Filesystem.File;
 using Path = Alphaleonis.Win32.Filesystem.Path;
 using Alphaleonis.Win32.Filesystem;
 using Alphaleonis.Win32.Security;
+
 #else
 using Path = System.IO.Path;
 using Directory = System.IO.Directory;
@@ -36,7 +37,9 @@ public class Program
 {
     private static List<string> _failedFiles;
     private static List<CsvOut> _csvOuts;
-        
+
+    public static string ActiveDateTimeFormat;
+
     private static string Header =
         $"RBCmd version {Assembly.GetExecutingAssembly().GetName().Version}" +
         "\r\n\r\nAuthor: Eric Zimmerman (saericzimmerman@gmail.com)" +
@@ -58,28 +61,30 @@ public class Program
         _rootCommand = new RootCommand
         {
             new Option<string>(
+                "-d",
+                "Directory to recursively process. Either this or -f is required"),
+
+            new Option<string>(
                 "-f",
-                "File to process ($MFT | $J | $Boot | $SDS). Required"),
-
-            new Option<string>(
-                "-m",
-                "$MFT file to use when -f points to a $J file (Use this to resolve parent path in $J CSV output).\r\n"),
-
-            new Option<string>(
-                "--json",
-                "Directory to save JSON formatted results to. This or --csv required unless --de or --body is specified"),
-
-            new Option<string>(
-                "--jsonf",
-                "File name to save JSON formatted results to. When present, overrides default name"),
+                "File to process. Either this or -d is required"),
+            
+            new Option<bool>(
+                "-q",
+                "Only show the filename being processed vs all output. Useful to speed up exporting to json and/or csv"),
 
             new Option<string>(
                 "--csv",
-                "Directory to save CSV formatted results to. This or --json required unless --de or --body is specified"),
+                "Directory to save CSV formatted results to. Be sure to include the full path in double quotes"),
 
             new Option<string>(
                 "--csvf",
-                "File name to save CSV formatted results to. When present, overrides default name\r\n"),
+                "File name to save CSV formatted results to. When present, overrides default name"),
+            
+            new Option<string>(
+                "--dt",
+                getDefaultValue:()=>"yyyy-MM-dd HH:mm:ss",
+                "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss"),
+            
             new Option<bool>(
                 "--debug",
                 () => false,
@@ -90,7 +95,7 @@ public class Program
                 () => false,
                 "Show trace information during processing")
         };
-            
+
         _rootCommand.Description = Header + "\r\n\r\n" + Footer;
 
         _rootCommand.Handler = CommandHandler.Create(DoWork);
@@ -100,8 +105,13 @@ public class Program
         Log.CloseAndFlush();
     }
 
-    private static void DoWork(string f, string d, string csv, string csvf, bool q, string dt, bool debug, bool trace)
+    private static void DoWork(string d, string f,  bool q, string csv, string csvf, string dt, bool debug, bool trace)
     {
+        ActiveDateTimeFormat = dt;
+        
+        var formatter  =
+            new DateTimeOffsetFormatter(CultureInfo.CurrentCulture);
+        
         var levelSwitch = new LoggingLevelSwitch();
 
         var template = "{Message:lj}{NewLine}{Exception}";
@@ -111,7 +121,7 @@ public class Program
             levelSwitch.MinimumLevel = LogEventLevel.Debug;
             template = "[{Timestamp:HH:mm:ss.fff} {Level:u3}] {Message:lj}{NewLine}{Exception}";
         }
-        
+
         if (trace)
         {
             levelSwitch.MinimumLevel = LogEventLevel.Verbose;
@@ -119,7 +129,7 @@ public class Program
         }
 
         var conf = new LoggerConfiguration()
-            .WriteTo.Console(outputTemplate: template)
+            .WriteTo.Console(outputTemplate: template,formatProvider: formatter)
             .MinimumLevel.ControlledBy(levelSwitch);
 
         Log.Logger = conf.CreateLogger();
@@ -139,28 +149,27 @@ public class Program
         if (f.IsNullOrEmpty() == false &&
             !File.Exists(f))
         {
-            Log.Warning("File {F} not found. Exiting",f);
+            Log.Warning("File {F} not found. Exiting", f);
             return;
         }
 
         if (d.IsNullOrEmpty() == false &&
             !Directory.Exists(d))
         {
-            Log.Warning("Directory {D} not found. Exiting",d);
+            Log.Warning("Directory {D} not found. Exiting", d);
             return;
         }
 
-        Log.Information("{Header}",Header);
+        Log.Information("{Header}", Header);
         Console.WriteLine();
-        Log.Information("Command line: {Args}",string.Join(" ", Environment.GetCommandLineArgs().Skip(1)));
-        Console.WriteLine();
-
+        Log.Information("Command line: {Args}", string.Join(" ", Environment.GetCommandLineArgs().Skip(1)));
+        
         if (IsAdministrator() == false)
         {
             Log.Warning("Warning: Administrator privileges not found!");
             Console.WriteLine();
         }
-        
+
         _csvOuts = new List<CsvOut>();
         _failedFiles = new List<string>();
 
@@ -175,23 +184,35 @@ public class Program
         }
         else
         {
-            if (q)
+            
+            Console.WriteLine();
+        
+            Log.Information("Looking for files in {Dir}",d);
+            if (!q)
             {
                 Console.WriteLine();
             }
-
+            
             files = GetRecycleBinFiles(d);
         }
 
+        Log.Information("Found {Count:N0} files. Processing...",files.Count);
+
+        if (!q)
+        {
+            Console.WriteLine();
+        }
+        
         foreach (var file in files)
         {
-            ProcessFile(file,q,dt);
+            ProcessFile(file, q, dt);
         }
-            
+
         sw.Stop();
 
+        Console.WriteLine();
         Log.Information(
-            "Processed {FailedFilesCount:N0} out of {Count:N0} files in {TotalSeconds:N4} seconds",files.Count - _failedFiles.Count,files.Count,sw.Elapsed.TotalSeconds);
+            "Processed {FailedFilesCount:N0} out of {Count:N0} files in {TotalSeconds:N4} seconds", files.Count - _failedFiles.Count, files.Count, sw.Elapsed.TotalSeconds);
         Console.WriteLine();
 
         if (_failedFiles.Count > 0)
@@ -200,7 +221,7 @@ public class Program
             Log.Information("Failed files");
             foreach (var failedFile in _failedFiles)
             {
-                Log.Information("  {FailedFile}",failedFile);
+                Log.Information("  {FailedFile}", failedFile);
             }
         }
 
@@ -208,7 +229,7 @@ public class Program
         {
             if (Directory.Exists(csv) == false)
             {
-                Log.Information("{Csv} does not exist. Creating...",csv);
+                Log.Information("{Csv} does not exist. Creating...", csv);
                 Directory.CreateDirectory(csv);
             }
 
@@ -219,19 +240,18 @@ public class Program
                 outName = Path.GetFileName(csvf);
             }
 
-             
-                
+
             var outFile = Path.Combine(csv, outName);
 
             outFile =
                 Path.GetFullPath(outFile);
-              
-            Log.Warning("CSV output will be saved to {Path}",Path.GetFullPath(outFile));
+
+            Log.Warning("CSV output will be saved to {Path}", Path.GetFullPath(outFile));
 
             try
             {
                 var sw1 = new StreamWriter(outFile);
-                var csvWriter = new CsvWriter(sw1,CultureInfo.InvariantCulture);
+                var csvWriter = new CsvWriter(sw1, CultureInfo.InvariantCulture);
 
                 csvWriter.WriteHeader(typeof(CsvOut));
                 csvWriter.NextRecord();
@@ -248,14 +268,14 @@ public class Program
             catch (Exception ex)
             {
                 Log.Error(ex,
-                    "Unable to open {OutFile} for writing. CSV export canceled. Error: {Message}",outFile,ex.Message);
+                    "Unable to open {OutFile} for writing. CSV export canceled. Error: {Message}", outFile, ex.Message);
             }
         }
     }
 
     private static string BytesToString(long byteCount)
     {
-        string[] suf = {"B", "KB", "MB", "GB", "TB", "PB", "EB"}; //Longs run out around EB
+        string[] suf = { "B", "KB", "MB", "GB", "TB", "PB", "EB" }; //Longs run out around EB
         if (byteCount == 0)
         {
             return "0" + suf[0];
@@ -277,18 +297,18 @@ public class Program
             {
                 var di = new DollarI(raw, file);
 
-                DisplayDollarI(di,dt,q);
+                DisplayDollarI(di, dt, q);
             }
             else if (raw[0] == 5)
             {
                 var info = new Info2(raw, file);
 
-                DisplayInfo2(info,q,dt);
+                DisplayInfo2(info, q, dt);
             }
             else
             {
                 Log.Warning(
-                    "Unknown header 0x{Raw:X}! Send file to {Email} so support can be added",raw[0],"saericzimmerman@gmail.com");
+                    "Unknown header 0x{Raw:X}! Send file to {Email} so support can be added", raw[0], "saericzimmerman@gmail.com");
                 _failedFiles.Add(file);
             }
 
@@ -300,14 +320,14 @@ public class Program
         catch (UnauthorizedAccessException ua)
         {
             Log.Error(ua,
-                "Unable to access {File}. Are you running as an administrator? Error: {Message}",file,ua.Message);
+                "Unable to access {File}. Are you running as an administrator? Error: {Message}", file, ua.Message);
             _failedFiles.Add(file);
         }
         catch (Exception ex)
         {
             _failedFiles.Add(file);
             Log.Error(ex,
-                "Error processing file {File} Please send it to {Email}. Error: {Message}",file,"saericzimmerman@gmail.com",ex.Message);
+                "Error processing file {File} Please send it to {Email}. Error: {Message}", file, "saericzimmerman@gmail.com", ex.Message);
         }
     }
 
@@ -315,70 +335,74 @@ public class Program
     {
         var files = new List<string>();
 
+
 #if NET6_0
         var enumerationOptions = new EnumerationOptions
         {
             IgnoreInaccessible = true,
-            MatchCasing = MatchCasing.CaseInsensitive,
+            MatchCasing = MatchCasing.CaseSensitive,
             RecurseSubdirectories = true,
             AttributesToSkip = 0
         };
-        var files2 =  Directory.EnumerateFileSystemEntries(dir, "INFO2",enumerationOptions);
-        
+
+
+        var files2 = Directory.EnumerateFileSystemEntries(dir, "$I*",enumerationOptions);
+
+
         files.AddRange(files2);
         
-        files2 =  Directory.EnumerateFileSystemEntries(dir, "$I*",enumerationOptions);
+
+        files2 = Directory.EnumerateFileSystemEntries(dir, "INFO2",enumerationOptions);
+
         
         files.AddRange(files2);
-        
+
 #elif NET462
-  Privilege[] privs = {Privilege.EnableDelegation, Privilege.Impersonate, Privilege.Tcb};
-        using (new PrivilegeEnabler(Privilege.Backup, privs))
+        Privilege[] privs = { Privilege.EnableDelegation, Privilege.Impersonate, Privilege.Tcb };
+        using var enabler = new PrivilegeEnabler(Privilege.Backup, privs);
+        var filters = new DirectoryEnumerationFilters
         {
-            var filters = new DirectoryEnumerationFilters
+            // Used to abort the enumeration.
+            // CancellationToken = cancelSource.Token,
+
+            // Filter to decide whether to recurse into subdirectories.
+            RecursionFilter = entryInfo =>
             {
-                // Used to abort the enumeration.
-                // CancellationToken = cancelSource.Token,
-
-                // Filter to decide whether to recurse into subdirectories.
-                RecursionFilter = entryInfo =>
+                if (!entryInfo.IsMountPoint && !entryInfo.IsSymbolicLink)
                 {
-                    if (!entryInfo.IsMountPoint && !entryInfo.IsSymbolicLink)
-                    {
-                        return true;
-                    }
-
-                    return false;
-                },
-
-                // Filter to process Exception handling.
-                ErrorFilter = delegate(int errorCode, string errorMessage, string pathProcessed)
-                {
-                    Log.Error("Error accessing {PathProcessed}. Error: {ErrorMessage}",pathProcessed,errorCode);
-
-                    // Return true to continue, false to throw the Exception.
                     return true;
-                },
-
-                // Filter to in-/exclude file system entries during the enumeration.
-                InclusionFilter = entryInfo =>
-                {
-                    if (entryInfo.FileName == "INFO2" || entryInfo.FileName.StartsWith("$I"))
-                    {
-                        Log.Debug("Found match: {FullPath}",entryInfo.FullPath);
-                        return true;
-                    }
-
-                    return false;
                 }
-            };
 
-            var dirEnumOptions =
-                DirectoryEnumerationOptions.Files | DirectoryEnumerationOptions.Recursive | DirectoryEnumerationOptions.ContinueOnException |
-                DirectoryEnumerationOptions.SkipReparsePoints;
+                return false;
+            },
 
-            files.AddRange(Directory.EnumerateFileSystemEntryInfos<string>(dir, dirEnumOptions, filters).Where(File.Exists));
+            // Filter to process Exception handling.
+            ErrorFilter = delegate(int errorCode, string errorMessage, string pathProcessed)
+            {
+                Log.Error("Error accessing {PathProcessed}. Error: {ErrorMessage}", pathProcessed, errorCode);
+
+                // Return true to continue, false to throw the Exception.
+                return true;
+            },
+
+            // Filter to in-/exclude file system entries during the enumeration.
+            InclusionFilter = entryInfo =>
+            {
+                if (entryInfo.FileName == "INFO2" || entryInfo.FileName.StartsWith("$I"))
+                {
+                    Log.Debug("Found match: {FullPath}", entryInfo.FullPath);
+                    return true;
+                }
+
+                return false;
             }
+        };
+
+        var dirEnumOptions =
+            DirectoryEnumerationOptions.Files | DirectoryEnumerationOptions.Recursive | DirectoryEnumerationOptions.ContinueOnException |
+            DirectoryEnumerationOptions.SkipReparsePoints;
+
+        files.AddRange(Directory.EnumerateFileSystemEntryInfos<string>(dir, dirEnumOptions, filters).Where(File.Exists));
 #endif
 
         return files;
@@ -388,10 +412,10 @@ public class Program
     {
         if (q == false)
         {
-            Log.Information("Source file: {SourceName}",info.SourceName);
+            Log.Information("Source file: {SourceName}", info.SourceName);
 
             Console.WriteLine();
-            Log.Information("Version: {Version}",info.Version);
+            Log.Information("Version: {Version}", info.Version);
 
             Console.WriteLine();
             Log.Information("File records");
@@ -421,13 +445,13 @@ public class Program
                 continue;
             }
 
-            Log.Information("Index: {Index}",infoFileRecord.Index);
-            Log.Information("Drive #: {DriveNumber}",infoFileRecord.DriveNumber);
-            Log.Information("File size: {FileSize} ({Size})",infoFileRecord.FileSize,BytesToString(infoFileRecord.FileSize));
+            Log.Information("Index: {Index}", infoFileRecord.Index);
+            Log.Information("Drive #: {DriveNumber}", infoFileRecord.DriveNumber);
+            Log.Information("File size: {FileSize:N0} ({Size})", infoFileRecord.FileSize, BytesToString(infoFileRecord.FileSize));
 
-            Log.Information("File name: {Fn}",fn);
+            Log.Information("File name: {Fn}", fn);
 
-            Log.Information("Deleted on: {DeletedOn}",infoFileRecord.DeletedOn);
+            Log.Information("Deleted on: {DeletedOn}", infoFileRecord.DeletedOn);
 
             Console.WriteLine();
         }
@@ -446,7 +470,7 @@ public class Program
 
         _csvOuts.Add(csv);
 
-           
+
         foreach (var diDirectoryFile in di.DirectoryFiles)
         {
             csv = new CsvOut
@@ -458,7 +482,7 @@ public class Program
                 FileType = "$I"
             };
 
-            _csvOuts.Add(csv); 
+            _csvOuts.Add(csv);
         }
 
         if (q)
@@ -466,7 +490,7 @@ public class Program
             return;
         }
 
-        Log.Information("Source file: {SourceName}",di.SourceName);
+        Log.Information("Source file: {SourceName}", di.SourceName);
 
         var os = "Pre-Windows 10";
 
@@ -476,25 +500,56 @@ public class Program
         }
 
         Console.WriteLine();
-        Log.Information("Version: {Format} ({Os})",di.Format,os);
+        Log.Information("Version: {Format} ({Os})", di.Format, os);
 
-        Log.Information("File size: {FileSize} ({Size})",di.FileSize,BytesToString(di.FileSize));
-        Log.Information("File name: {Filename}",di.Filename);
+        Log.Information("File size: {FileSize:N0} ({Size})", di.FileSize, BytesToString(di.FileSize));
+        Log.Information("File name: {Filename}", di.Filename);
         Log.Information(
-            "Deleted on: {DeletedOn}",di.DeletedOn);
+            "Deleted on: {DeletedOn}", di.DeletedOn);
 
         if (di.DirectoryFiles.Count > 0)
         {
             Console.WriteLine();
-            Log.Information("Subfiles in {Filename}",di.Filename);
+            Log.Information("Subfiles in {Filename}", di.Filename);
         }
 
         foreach (var diDirectoryFile in di.DirectoryFiles)
         {
-            Log.Information("File name: {FileName} Size: {FileSize} ({Size})",diDirectoryFile.FileName,diDirectoryFile.FileSize,BytesToString(diDirectoryFile.FileSize));
+            Log.Information("File name: {FileName} Size: {FileSize:N0} ({Size})", diDirectoryFile.FileName, diDirectoryFile.FileSize, BytesToString(diDirectoryFile.FileSize));
         }
     }
 
+    class DateTimeOffsetFormatter : IFormatProvider, ICustomFormatter
+    {
+        private readonly IFormatProvider _innerFormatProvider;
+
+        public DateTimeOffsetFormatter(IFormatProvider innerFormatProvider)
+        {
+            _innerFormatProvider = innerFormatProvider;
+        }
+
+        public object GetFormat(Type formatType)
+        {
+            return formatType == typeof(ICustomFormatter) ? this : _innerFormatProvider.GetFormat(formatType);
+        }
+
+        public string Format(string format, object arg, IFormatProvider formatProvider)
+        {
+            if (arg is DateTimeOffset)
+            {
+                var size = (DateTimeOffset)arg;
+                return size.ToString(ActiveDateTimeFormat);
+            }
+
+            var formattable = arg as IFormattable;
+            if (formattable != null)
+            {
+                return formattable.ToString(format, _innerFormatProvider);
+            }
+
+            return arg.ToString();
+        }
+    }
 
     private static bool IsAdministrator()
     {
@@ -502,6 +557,7 @@ public class Program
         {
             return true;
         }
+
         var identity = WindowsIdentity.GetCurrent();
         var principal = new WindowsPrincipal(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
