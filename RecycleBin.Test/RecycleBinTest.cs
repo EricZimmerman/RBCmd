@@ -3,95 +3,94 @@ using System.IO;
 using FluentAssertions;
 using NUnit.Framework;
 
-namespace RecycleBin.Test
+namespace RecycleBin.Test;
+
+public class RecycleBinTest
 {
-    public class RecycleBinTest
+    public static string BasePath = @"..\..\TestFiles";
+
+    [Test]
+    public void Info2Test()
     {
-        public static string BasePath = @"..\..\TestFiles";
+        var infoPath = Path.Combine(BasePath, "WinXp - mueller1", "INFO2");
 
-        [Test]
-        public void Info2Test()
+        var i2 = new Info2(File.ReadAllBytes(infoPath), infoPath);
+
+        i2.Version.Should().Be(5);
+        i2.FileEntrySize.Should().Be(800);
+        i2.Unknown3.Should().Be(0);
+
+        foreach (var i2FileRecord in i2.FileRecords)
         {
-            var infoPath = Path.Combine(BasePath, "WinXp - mueller1", "INFO2");
+            i2FileRecord.FileNameAscii.Should().NotBeNullOrEmpty();
+            i2FileRecord.FileNameUnicode.Should().NotBeNullOrEmpty();
 
-            var i2 = new Info2(File.ReadAllBytes(infoPath), infoPath);
+            Debug.WriteLine(i2FileRecord);
+        }
+    }
 
-            i2.Version.Should().Be(5);
-            i2.FileEntrySize.Should().Be(800);
-            i2.Unknown3.Should().Be(0);
+    [Test]
+    public void DollarI()
+    {
+        var filePath = Path.Combine(BasePath, "Win8.1 - Donald Blake");
 
-            foreach (var i2FileRecord in i2.FileRecords)
-            {
-                i2FileRecord.FileNameAscii.Should().NotBeNullOrEmpty();
-                i2FileRecord.FileNameUnicode.Should().NotBeNullOrEmpty();
+        foreach (var file in Directory.GetFiles(filePath, "$*"))
+        {
+            var raw = File.ReadAllBytes(file);
 
-                Debug.WriteLine(i2FileRecord);
-            }
+            var d1 = new DollarI(raw, file);
+
+            d1.Filename.Should().NotBeNullOrEmpty();
+            d1.FileSize.Should().BeGreaterThan(0);
+            d1.SourceName.Should().NotBeNullOrEmpty();
+
+
+            Debug.WriteLine(d1);
         }
 
-        [Test]
-        public void DollarI()
+        filePath = Path.Combine(BasePath, "Win7 - nfury");
+
+        foreach (var file in Directory.GetFiles(filePath, "$*"))
         {
-            var filePath = Path.Combine(BasePath, "Win8.1 - Donald Blake");
+            var raw = File.ReadAllBytes(file);
 
-            foreach (var file in Directory.GetFiles(filePath, "$*"))
-            {
-                var raw = File.ReadAllBytes(file);
+            var d1 = new DollarI(raw, file);
 
-                var d1 = new DollarI(raw, file);
+            d1.Filename.Should().NotBeNullOrEmpty();
+            d1.FileSize.Should().BeGreaterThan(0);
+            d1.SourceName.Should().NotBeNullOrEmpty();
 
-                d1.Filename.Should().NotBeNullOrEmpty();
-                d1.FileSize.Should().BeGreaterThan(0);
-                d1.SourceName.Should().NotBeNullOrEmpty();
+            Debug.WriteLine(d1);
+        }
 
+        filePath = Path.Combine(BasePath, "Win7 - nromanoff");
 
-                Debug.WriteLine(d1);
-            }
+        foreach (var file in Directory.GetFiles(filePath, "$*"))
+        {
+            var raw = File.ReadAllBytes(file);
 
-            filePath = Path.Combine(BasePath, "Win7 - nfury");
+            var d1 = new DollarI(raw, file);
 
-            foreach (var file in Directory.GetFiles(filePath, "$*"))
-            {
-                var raw = File.ReadAllBytes(file);
+            d1.Filename.Should().NotBeNullOrEmpty();
+            d1.FileSize.Should().BeGreaterThan(0);
+            d1.SourceName.Should().NotBeNullOrEmpty();
 
-                var d1 = new DollarI(raw, file);
+            Debug.WriteLine(d1);
+        }
 
-                d1.Filename.Should().NotBeNullOrEmpty();
-                d1.FileSize.Should().BeGreaterThan(0);
-                d1.SourceName.Should().NotBeNullOrEmpty();
+        filePath = Path.Combine(BasePath, "Win10 - DEFCON 2018 Desktop");
 
-                Debug.WriteLine(d1);
-            }
+        foreach (var file in Directory.GetFiles(filePath, "$*"))
+        {
+            var raw = File.ReadAllBytes(file);
 
-            filePath = Path.Combine(BasePath, "Win7 - nromanoff");
+            var d1 = new DollarI(raw, file);
 
-            foreach (var file in Directory.GetFiles(filePath, "$*"))
-            {
-                var raw = File.ReadAllBytes(file);
+            d1.Filename.Should().NotBeNullOrEmpty();
+            d1.FileSize.Should().BeGreaterThan(0);
+            d1.SourceName.Should().NotBeNullOrEmpty();
 
-                var d1 = new DollarI(raw, file);
-
-                d1.Filename.Should().NotBeNullOrEmpty();
-                d1.FileSize.Should().BeGreaterThan(0);
-                d1.SourceName.Should().NotBeNullOrEmpty();
-
-                Debug.WriteLine(d1);
-            }
-
-            filePath = Path.Combine(BasePath, "Win10 - DEFCON 2018 Desktop");
-
-            foreach (var file in Directory.GetFiles(filePath, "$*"))
-            {
-                var raw = File.ReadAllBytes(file);
-
-                var d1 = new DollarI(raw, file);
-
-                d1.Filename.Should().NotBeNullOrEmpty();
-                d1.FileSize.Should().BeGreaterThan(0);
-                d1.SourceName.Should().NotBeNullOrEmpty();
-
-                Debug.WriteLine(d1);
-            }
+            Debug.WriteLine(d1);
         }
     }
 }

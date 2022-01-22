@@ -4,11 +4,9 @@
     <AssemblyTitle>RecycleBin</AssemblyTitle>
     <LangVersion>10</LangVersion>
     <Product>RecycleBin</Product>
-    <Copyright>Copyright © 2022</Copyright>
+    <Copyright>CEric Zimmerman</Copyright>
   </PropertyGroup>
-  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
-    <DebugSymbols>true</DebugSymbols>
-  </PropertyGroup>
+
   <ItemGroup>
     <PackageReference Include="System.Data.DataSetExtensions" Version="4.*" />
     <PackageReference Include="Microsoft.CSharp" Version="4.*" />
