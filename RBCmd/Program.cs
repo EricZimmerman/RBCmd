@@ -496,7 +496,7 @@ public class Program
 
         if (di.Format == 2)
         {
-            os = "Windows 10";
+            os = "Windows 10/11";
         }
 
         Console.WriteLine();
