@@ -233,7 +233,7 @@ public class Program
                 Directory.CreateDirectory(csv);
             }
 
-            var outName = $"{DateTimeOffset.Now:yyyyMMddHHmmss}_RBCmd_Output.csv";
+            var outName = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmss}_RBCmd_Output.csv";
 
             if (csvf.IsNullOrEmpty() == false)
             {
