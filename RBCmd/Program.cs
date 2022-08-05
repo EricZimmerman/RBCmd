@@ -70,7 +70,7 @@ public class Program
             
             new Option<bool>(
                 "-q",
-                "Only show the filename being processed vs all output. Useful to speed up exporting to json and/or csv"),
+                "Only show the filename being processed vs all output. Useful to speed up exporting to JSON and/or CSV"),
 
             new Option<string>(
                 "--csv",
