@@ -11,6 +11,8 @@
     <PackageTags>recycle bin, $I, $R</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <Description>Parses Windows $Recycle.Bin data</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <!-- If all members are not documented, you can disable the compiler warnings -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
