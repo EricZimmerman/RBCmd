@@ -5,6 +5,7 @@
     <Product>RecycleBin.Test</Product>
     <Copyright>Eric Zimmerman</Copyright>
     <LangVersion>10</LangVersion>
+    <IsPackable>false</IsPackable>
   </PropertyGroup>
   
   <ItemGroup>
