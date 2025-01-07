@@ -8,7 +8,7 @@
     <Product>RBCmd</Product>
     <Description>Parse Recycle Bin related artifacts</Description>
     <Copyright>Eric Zimmerman</Copyright>
-    <Version>1.5.0</Version>
+    <Version>1.6.1</Version>
     <LangVersion>10</LangVersion>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
