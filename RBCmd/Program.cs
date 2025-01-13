@@ -336,7 +336,7 @@ public class Program
         var files = new List<string>();
 
 
-#if NET6_0
+#if NET6_0_OR_GREATER
         var enumerationOptions = new EnumerationOptions
         {
             IgnoreInaccessible = true,
