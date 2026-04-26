@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Help;
-using System.CommandLine.NamingConventionBinder;
+using System.CommandLine.Invocation;
+
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
@@ -41,7 +42,7 @@ public class Program
     public static string ActiveDateTimeFormat;
 
     private static string Header =
-        $"RBCmd version {Assembly.GetExecutingAssembly().GetName().Version}" +
+        $"RBCmd version {Assembly.GetExecutingAssembly().GetName().Version.ToString(3)}" +
         "\r\n\r\nAuthor: Eric Zimmerman (saericzimmerman@gmail.com)" +
         "\r\nhttps://github.com/EricZimmerman/RBCmd";
 
@@ -57,50 +58,74 @@ public class Program
     private static async Task Main(string[] args)
     {
         ExceptionlessClient.Default.Startup("IudF6lFjzvdMldPtlYyPmSMHnSEL89n2WmYbCHoy");
+        
+        var dOpt = new Option<string>("-d")
+        {
+            Description = "Directory to recursively process. Either this or -f is required"
+        };
 
+        var fOpt = new Option<string>("-f")
+        {
+            Description = "File to recursively process. Either this or -d is required"
+        };
+
+        var qOpt = new Option<bool>("-q")
+        {
+            Description = "Only show the filename being processed vs all output. Useful to speed up exporting to JSON and/or CSV"
+        };
+
+        var dtOpt = new Option<string>(
+                "--dt"){
+                Description =        "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss",
+            DefaultValueFactory = _ => "yyyy-MM-dd HH:mm:ss"
+        };
+
+        var csvOpt = new Option<string>(
+            "--csv")
+        {
+         Description = "Directory to save CSV formatted results to. Be sure to include the full path in double quotes"
+        
+        };
+
+        var csvfOpt = new Option<string>(
+            "--csvf")
+        {
+         Description   = "File name to save CSV formatted results to. When present, overrides default name"
+        };
+
+        var debugOpt = new Option<bool>("--debug")
+        {
+            Description = "Show debug information during processing",
+            DefaultValueFactory = _ => false
+        };
+        var traceOpt = new Option<bool>("--trace")
+        {
+            Description = "Show trace information during processing",
+            DefaultValueFactory = _ => false
+        };
+        
         _rootCommand = new RootCommand
         {
-            new Option<string>(
-                "-d",
-                "Directory to recursively process. Either this or -f is required"),
-
-            new Option<string>(
-                "-f",
-                "File to process. Either this or -d is required"),
+            dOpt,
+            fOpt,
+            qOpt,
+            csvOpt,
+            csvfOpt,
+            dtOpt,
+            debugOpt,
+            traceOpt
             
-            new Option<bool>(
-                "-q",
-                "Only show the filename being processed vs all output. Useful to speed up exporting to JSON and/or CSV"),
-
-            new Option<string>(
-                "--csv",
-                "Directory to save CSV formatted results to. Be sure to include the full path in double quotes"),
-
-            new Option<string>(
-                "--csvf",
-                "File name to save CSV formatted results to. When present, overrides default name"),
-            
-            new Option<string>(
-                "--dt",
-                getDefaultValue:()=>"yyyy-MM-dd HH:mm:ss",
-                "The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options. Default is: yyyy-MM-dd HH:mm:ss"),
-            
-            new Option<bool>(
-                "--debug",
-                () => false,
-                "Show debug information during processing"),
-
-            new Option<bool>(
-                "--trace",
-                () => false,
-                "Show trace information during processing")
         };
 
         _rootCommand.Description = Header + "\r\n\r\n" + Footer;
 
-        _rootCommand.Handler = CommandHandler.Create(DoWork);
+        _rootCommand.SetAction(result => DoWork(result.GetValue(dOpt), result.GetValue(fOpt), result.GetValue(qOpt),
+            result.GetValue(csvOpt), result.GetValue(csvfOpt), result.GetValue(dtOpt), result.GetValue(debugOpt),
+            result.GetValue(traceOpt)));
+            
+       // _rootCommand.Handler = CommandHandler.Create(DoWork);
 
-        await _rootCommand.InvokeAsync(args);
+       var foo = _rootCommand.Parse(args).InvokeAsync();
 
         Log.CloseAndFlush();
     }
@@ -137,12 +162,9 @@ public class Program
         if (f.IsNullOrEmpty() &&
             d.IsNullOrEmpty())
         {
-            var helpBld = new HelpBuilder(LocalizationResources.Instance, Console.WindowWidth);
-            var hc = new HelpContext(helpBld, _rootCommand, Console.Out);
-
-            helpBld.Write(hc);
-
-            Log.Warning("Either -f or -d is required. Exiting");
+            var aaa = new CustomHelpAction(new HelpAction());
+            aaa.Invoke(_rootCommand.Parse("Either -f or -d is required. Exiting"));
+           
             return;
         }
 
@@ -561,5 +583,24 @@ public class Program
         var identity = WindowsIdentity.GetCurrent();
         var principal = new WindowsPrincipal(identity);
         return principal.IsInRole(WindowsBuiltInRole.Administrator);
+    }
+    
+    private class CustomHelpAction : SynchronousCommandLineAction
+    {
+        private readonly HelpAction _defaultHelp;
+
+        public CustomHelpAction(HelpAction action)
+        {
+            _defaultHelp = action;
+        }
+
+        public override int Invoke(ParseResult parseResult)
+        {
+            var result = _defaultHelp.Invoke(parseResult);
+
+            Log.Warning("{Msg}", string.Join(" ",parseResult.Tokens));
+
+            return result;
+        }
     }
 }

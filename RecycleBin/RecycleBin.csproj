@@ -7,7 +7,7 @@
     <Copyright>Eric Zimmerman</Copyright>
     <Authors>Eric Zimmerman</Authors>
     <PackageProjectUrl>https://github.com/EricZimmerman/RBCmd</PackageProjectUrl>
-    <Version>1.6.1</Version>
+    <Version>2026.5.0</Version>
     <PackageTags>recycle bin, $I, $R</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
@@ -21,11 +21,11 @@
 
   <None Include="../README.md" Pack="true" PackagePath=""/>
   <None Include="../icon.png" Pack="true" PackagePath=""/>
-  <PackageReference Include="DotNet.ReproducibleBuilds" Version="1.2.25">
+  <PackageReference Include="DotNet.ReproducibleBuilds" Version="2.0.2">
     <PrivateAssets>all</PrivateAssets>
     <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
   </PackageReference>
-  <PackageReference Include="MinVer" Version="6.0.0">
+  <PackageReference Include="MinVer" Version="7.0.0">
     <PrivateAssets>all</PrivateAssets>
     <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
   </PackageReference>
