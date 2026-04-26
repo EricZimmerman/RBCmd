@@ -12,8 +12,8 @@
     <ProjectReference Include="..\RecycleBin\RecycleBin.csproj" />
   </ItemGroup>
   <ItemGroup>
-    <PackageReference Include="FluentAssertions" Version="8.9.0" />
-    <PackageReference Include="NUnit" Version="4.5.1" />
+    <PackageReference Include="FluentAssertions" Version="[7.0.0,8.0.0)" />
+    <PackageReference Include="NUnit" Version="4.3.2" />
   </ItemGroup>
   <ItemGroup>
     <None Include="TestFiles\Win10 - DEFCON 2018 Desktop\%24I2JRX90" />
