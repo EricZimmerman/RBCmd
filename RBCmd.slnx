@@ -1,0 +1,8 @@
+<Solution>
+  <Configurations>
+    <Platform Name="Any CPU" />
+  </Configurations>
+  <Project Path="RBCmd/RBCmd.csproj" />
+  <Project Path="RecycleBin.Test/RecycleBin.Test.csproj" />
+  <Project Path="RecycleBin/RecycleBin.csproj" />
+</Solution>

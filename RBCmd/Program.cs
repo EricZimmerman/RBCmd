@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.CommandLine;
 using System.CommandLine.Help;
@@ -19,13 +19,12 @@ using Serilog.Core;
 using Serilog.Events;
 using ServiceStack;
 using CsvWriter = CsvHelper.CsvWriter;
-#if NET462
+#if !NET9_0_OR_GREATER
 using Directory = Alphaleonis.Win32.Filesystem.Directory;
 using File = Alphaleonis.Win32.Filesystem.File;
 using Path = Alphaleonis.Win32.Filesystem.Path;
 using Alphaleonis.Win32.Filesystem;
 using Alphaleonis.Win32.Security;
-
 #else
 using Path = System.IO.Path;
 using Directory = System.IO.Directory;
@@ -55,7 +54,7 @@ public class Program
 
     private static RootCommand _rootCommand;
 
-    private static async Task Main(string[] args)
+    private static async Task<int> Main(string[] args)
     {
         ExceptionlessClient.Default.Startup("IudF6lFjzvdMldPtlYyPmSMHnSEL89n2WmYbCHoy");
         
@@ -123,14 +122,15 @@ public class Program
             result.GetValue(csvOpt), result.GetValue(csvfOpt), result.GetValue(dtOpt), result.GetValue(debugOpt),
             result.GetValue(traceOpt)));
             
-       // _rootCommand.Handler = CommandHandler.Create(DoWork);
-
-       var foo = _rootCommand.Parse(args).InvokeAsync();
+        var exitCode = await _rootCommand.Parse(args).InvokeAsync();
 
         Log.CloseAndFlush();
+
+        return exitCode;
     }
 
-    private static void DoWork(string d, string f,  bool q, string csv, string csvf, string dt, bool debug, bool trace)
+    /// <returns>0 on success. 1 when arguments are invalid, a file fails or the CSV export fails</returns>
+    private static int DoWork(string d, string f,  bool q, string csv, string csvf, string dt, bool debug, bool trace)
     {
         ActiveDateTimeFormat = dt;
         
@@ -162,24 +162,24 @@ public class Program
         if (f.IsNullOrEmpty() &&
             d.IsNullOrEmpty())
         {
-            var aaa = new CustomHelpAction(new HelpAction());
-            aaa.Invoke(_rootCommand.Parse("Either -f or -d is required. Exiting"));
-           
-            return;
+            var helpAction = new CustomHelpAction(new HelpAction());
+            helpAction.Invoke(_rootCommand.Parse(""));
+
+            return 1;
         }
 
         if (f.IsNullOrEmpty() == false &&
             !File.Exists(f))
         {
             Log.Warning("File {F} not found. Exiting", f);
-            return;
+            return 1;
         }
 
         if (d.IsNullOrEmpty() == false &&
             !Directory.Exists(d))
         {
             Log.Warning("Directory {D} not found. Exiting", d);
-            return;
+            return 1;
         }
 
         Log.Information("{Header}", Header);
@@ -249,10 +249,18 @@ public class Program
 
         if (csv.IsNullOrEmpty() == false && files.Count > 0)
         {
-            if (Directory.Exists(csv) == false)
+            try
             {
-                Log.Information("{Csv} does not exist. Creating...", csv);
-                Directory.CreateDirectory(csv);
+                if (Directory.Exists(csv) == false)
+                {
+                    Log.Information("{Csv} does not exist. Creating...", csv);
+                    Directory.CreateDirectory(csv);
+                }
+            }
+            catch (Exception ex)
+            {
+                Log.Error("Unable to create {Csv}. CSV export canceled. Error: {Message}", csv, ex.Message);
+                return 1;
             }
 
             var outName = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmss}_RBCmd_Output.csv";
@@ -272,8 +280,8 @@ public class Program
 
             try
             {
-                var sw1 = new StreamWriter(outFile);
-                var csvWriter = new CsvWriter(sw1, CultureInfo.InvariantCulture);
+                using var sw1 = new StreamWriter(outFile);
+                using var csvWriter = new CsvWriter(sw1, CultureInfo.InvariantCulture);
 
                 csvWriter.WriteHeader(typeof(CsvOut));
                 csvWriter.NextRecord();
@@ -283,16 +291,16 @@ public class Program
                     csvWriter.WriteRecord(csvOut);
                     csvWriter.NextRecord();
                 }
-
-                sw1.Flush();
-                sw1.Close();
             }
             catch (Exception ex)
             {
                 Log.Error(ex,
                     "Unable to open {OutFile} for writing. CSV export canceled. Error: {Message}", outFile, ex.Message);
+                return 1;
             }
         }
+
+        return _failedFiles.Count > 0 ? 1 : 0;
     }
 
     private static string BytesToString(long byteCount)
@@ -315,29 +323,58 @@ public class Program
         {
             var raw = File.ReadAllBytes(file);
 
-            if (raw[0] == 1 || raw[0] == 2)
+            // $I files start with a 64-bit format of 1 or 2, INFO2 files with a 32-bit version of 4 or 5
+            var format = raw.Length >= 8 ? BitConverter.ToInt64(raw, 0) : -1;
+            var version = raw.Length >= 4 ? BitConverter.ToInt32(raw, 0) : -1;
+
+            List<string> parseErrors;
+
+            if (format == 1 || format == 2)
             {
                 var di = new DollarI(raw, file);
 
                 DisplayDollarI(di, dt, q);
+                parseErrors = di.ParseErrors;
             }
-            else if (raw[0] == 5)
+            else if (version == 4 || version == 5)
             {
                 var info = new Info2(raw, file);
 
                 DisplayInfo2(info, q, dt);
+                parseErrors = info.ParseErrors;
             }
             else
             {
-                Log.Warning(
-                    "Unknown header 0x{Raw:X}! Send file to {Email} so support can be added", raw[0], "saericzimmerman@gmail.com");
+                if (raw.Length == 0)
+                {
+                    Log.Warning("{File} is empty", file);
+                }
+                else
+                {
+                    Log.Warning(
+                        "Unknown header 0x{Raw:X}! Send file to {Email} so support can be added", raw[0],
+                        "saericzimmerman@gmail.com");
+                }
+
                 _failedFiles.Add(file);
+                parseErrors = new List<string>();
+            }
+
+            foreach (var parseError in parseErrors)
+            {
+                Log.Warning("{File}: {ParseError}", file, parseError);
             }
 
             if (q == false)
             {
                 Console.WriteLine();
             }
+        }
+        catch (RecycleBinParseException pe)
+        {
+            Log.Error("Error processing file {File}: {Message} (offset 0x{Offset:X}, field {Field})", file, pe.Message,
+                pe.Offset, pe.Field);
+            _failedFiles.Add(file);
         }
         catch (UnauthorizedAccessException ua)
         {
@@ -358,7 +395,7 @@ public class Program
         var files = new List<string>();
 
 
-#if NET6_0_OR_GREATER
+#if NET9_0_OR_GREATER
         var enumerationOptions = new EnumerationOptions
         {
             IgnoreInaccessible = true,
@@ -368,18 +405,10 @@ public class Program
         };
 
 
-        var files2 = Directory.EnumerateFileSystemEntries(dir, "$I*",enumerationOptions);
-
-
-        files.AddRange(files2);
-        
-
-        files2 = Directory.EnumerateFileSystemEntries(dir, "INFO2",enumerationOptions);
-
-        
-        files.AddRange(files2);
-
-#elif NET462
+        // Files only: a deleted directory has a $R directory, never a $I one, but don't trip over odd names
+        files.AddRange(Directory.EnumerateFiles(dir, "$I*", enumerationOptions));
+        files.AddRange(Directory.EnumerateFiles(dir, "INFO2", enumerationOptions));
+#else
         Privilege[] privs = { Privilege.EnableDelegation, Privilege.Impersonate, Privilege.Tcb };
         using var enabler = new PrivilegeEnabler(Privilege.Backup, privs);
         var filters = new DirectoryEnumerationFilters
@@ -458,7 +487,8 @@ public class Program
                 SourceName = info.SourceName,
                 DeletedOn = infoFileRecord.DeletedOn.ToUniversalTime()
                     .ToString(dt),
-                FileType = "INFO2"
+                FileType = "INFO2",
+                Removed = infoFileRecord.Removed
             };
             _csvOuts.Add(csv);
 
@@ -474,6 +504,11 @@ public class Program
             Log.Information("File name: {Fn}", fn);
 
             Log.Information("Deleted on: {DeletedOn}", infoFileRecord.DeletedOn);
+
+            if (infoFileRecord.Removed)
+            {
+                Log.Information("Removed: no longer in the Recycle Bin (restored, or the Recycle Bin was emptied)");
+            }
 
             Console.WriteLine();
         }
@@ -598,7 +633,7 @@ public class Program
         {
             var result = _defaultHelp.Invoke(parseResult);
 
-            Log.Warning("{Msg}", string.Join(" ",parseResult.Tokens));
+            Log.Warning("Either -f or -d is required. Exiting");
 
             return result;
         }

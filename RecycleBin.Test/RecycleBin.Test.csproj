@@ -1,35 +1,21 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFramework>net9.0</TargetFramework>
-    <AssemblyTitle>RecycleBin.Test</AssemblyTitle>
-    <Product>RecycleBin.Test</Product>
-    <Copyright>Eric Zimmerman</Copyright>
+    <TargetFramework>net10.0</TargetFramework>
     <LangVersion>10</LangVersion>
     <IsPackable>false</IsPackable>
+    <Copyright>Eric Zimmerman</Copyright>
   </PropertyGroup>
-  
-  <ItemGroup>
-    <ProjectReference Include="..\RecycleBin\RecycleBin.csproj" />
-  </ItemGroup>
   <ItemGroup>
     <PackageReference Include="FluentAssertions" Version="[7.0.0,8.0.0)" />
-    <PackageReference Include="NUnit" Version="4.3.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageReference Include="NUnit" Version="5.0.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="6.3.1" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="TestFiles\Win10 - DEFCON 2018 Desktop\%24I2JRX90" />
-    <None Include="TestFiles\Win10 - DEFCON 2018 Desktop\%24IFATB0K" />
-    <None Include="TestFiles\Win7 - nfury\%24I6SODDB" />
-    <None Include="TestFiles\Win7 - nromanoff\%24IPFXZSB" />
-    <None Include="TestFiles\Win7 - nromanoff\%24ISEBKEC.zip" />
-    <None Include="TestFiles\Win8.1 - Donald Blake\%24I3VPA17" />
-    <None Include="TestFiles\Win8.1 - Donald Blake\%24IEMAANA" />
-    <None Include="TestFiles\Win8.1 - Donald Blake\%24IG1VEXX.xls" />
-    <None Include="TestFiles\Win8.1 - Donald Blake\%24ISFWPA9.xls" />
-    <None Include="TestFiles\WinXp - mueller1\INFO2" />
-    <None Include="TestFiles\WinXp - mueller1\INFO2_MultiFiles" />
-  </ItemGroup>
-  <ItemGroup>
-    <Content Include="TestFiles\Win7 - nfury\%24ID5HSV3.exe" />
-    <Content Include="TestFiles\Win7 - nfury\%24IZI9VH9.exe" />
+    <ProjectReference Include="../RecycleBin/RecycleBin.csproj" />
+    <!-- CliTests run the built RBCmd.dll, which this copies next to the tests -->
+    <ProjectReference Include="../RBCmd/RBCmd.csproj" />
+    <!-- Real samples, one folder per system -->
+    <None Include="TestFiles/**" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 </Project>

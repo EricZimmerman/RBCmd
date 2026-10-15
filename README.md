@@ -28,7 +28,20 @@
 
 ## Documentation
 
-Windows Recycle Bin artifact parser.
+Windows Recycle Bin artifact parser. It handles:
+
+- `$I` files from `$Recycle.Bin` (Windows Vista and later), formats 1 (Vista to 8.1) and 2 (Windows 10/11). When the deleted item was a directory, the files in the matching `$R` directory are listed as well.
+- `INFO2` files from `RECYCLER` / `RECYCLED` (Windows 95 to XP/2003), with 280 or 800 byte records. Windows clears the first byte of a record's ANSI path when the file leaves the Recycle Bin (restored, or the Recycle Bin was emptied), so those records are shown as removed and have `True` in the CSV `Removed` column.
+
+Times are UTC. Problems in a damaged file are reported as warnings, and everything readable is still shown.
+
+Exit code 0 means success. Exit code 1 means invalid arguments, a file that could not be processed, or a failed CSV export.
+
+The .NET 10 build runs on Linux and macOS.
+
+## RecycleBin NuGet package
+
+The parsers are also available as the [RecycleBin](https://www.nuget.org/packages/RecycleBin) NuGet package: `new DollarI(bytes, path)` and `new Info2(bytes, path)`. Each throws `RecycleBinParseException` when the data is unusable; other problems are listed in `ParseErrors`.
 
 # Download Eric Zimmerman's Tools
 

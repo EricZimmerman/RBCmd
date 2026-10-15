@@ -1,34 +1,34 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
     <AssemblyTitle>RecycleBin</AssemblyTitle>
     <LangVersion>10</LangVersion>
     <Product>RecycleBin</Product>
-    <Copyright>Eric Zimmerman</Copyright>
     <Authors>Eric Zimmerman</Authors>
+    <Company>Eric Zimmerman</Company>
+    <Copyright>Eric Zimmerman</Copyright>
     <PackageProjectUrl>https://github.com/EricZimmerman/RBCmd</PackageProjectUrl>
-    <Version>2026.5.0</Version>
-    <PackageTags>recycle bin, $I, $R</PackageTags>
+    <RepositoryUrl>https://github.com/EricZimmerman/RBCmd</RepositoryUrl>
+    <PackageTags>recycle bin, $I, $R, INFO2</PackageTags>
     <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageIcon>icon.png</PackageIcon>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <Description>Parses Windows $Recycle.Bin data</Description>
+    <Description>Parses Windows $Recycle.Bin ($I) and RECYCLER (INFO2) data</Description>
     <GenerateDocumentationFile>True</GenerateDocumentationFile>
     <!-- If all members are not documented, you can disable the compiler warnings -->
     <NoWarn>$(NoWarn);CS1591</NoWarn>
   </PropertyGroup>
-<ItemGroup>
-
-  <None Include="../README.md" Pack="true" PackagePath=""/>
-  <None Include="../icon.png" Pack="true" PackagePath=""/>
-  <PackageReference Include="DotNet.ReproducibleBuilds" Version="2.0.2">
-    <PrivateAssets>all</PrivateAssets>
-    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-  </PackageReference>
-  <PackageReference Include="MinVer" Version="7.0.0">
-    <PrivateAssets>all</PrivateAssets>
-    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
-  </PackageReference>
-</ItemGroup>
-
+  <ItemGroup>
+    <None Include="../README.md" Pack="true" PackagePath=""/>
+    <None Include="../icon.png" Pack="true" PackagePath=""/>
+    <InternalsVisibleTo Include="RecycleBin.Test" />
+    <PackageReference Include="DotNet.ReproducibleBuilds" Version="2.0.5">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="MinVer" Version="8.0.0">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
 </Project>
