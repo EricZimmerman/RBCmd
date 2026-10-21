@@ -14,6 +14,8 @@ Input may be corrupt or hostile: parse everything that is there and report probl
 
 The SDK is pinned in `global.json` (.NET 10). All projects use `LangVersion 10`, so avoid newer C# syntax. Tests use NUnit 5 + FluentAssertions 7 (pinned to `[7.0.0,8.0.0)`, since 8.x requires a commercial license).
 
+Debug info: `Directory.Build.props` sets `DebugType embedded` (the pdbs are inside the assemblies: stack traces and Exceptionless reports have file and line numbers, and no .pdb file ships) and, for Release, `ContinuousIntegrationBuild` (source paths in the pdbs are `/_/...`, not this machine's folders). Don't add `DebugType` or `DebugSymbols` to the project files.
+
 ```bash
 dotnet build -c Release                                    # builds RBCmd.slnx (library, CLI net472+net10.0, tests)
 dotnet test -c Release                                     # all tests
