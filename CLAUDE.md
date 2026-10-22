@@ -35,7 +35,7 @@ dotnet run --project RBCmd -f net10.0 -- -d RecycleBin.Test/TestFiles --csv out
 ## CLI
 
 All in `RBCmd/Program.cs`.
-- `Main` awaits `InvokeAsync` and returns `DoWork`'s exit code: 0, or 1 for invalid arguments, any failed file, or a failed CSV export.
+- `Main` awaits `InvokeAsync` and returns `DoWork`'s exit code: 0, or 1 for invalid arguments, any failed file (one that throws, has an unknown header, or has `ParseErrors`: it is still exported, but listed under "Failed files"), or a failed CSV export.
 - File type is detected from content: Int64 1/2 is `$I`, Int32 4/5 is INFO2.
 - `-d` finds `$I*` and `INFO2` files. On net10.0 this uses `System.IO` enumeration (case-sensitive, inaccessible folders skipped). On net472 it uses AlphaFS with the Backup privilege and skips reparse points.
 - `#if NET9_0_OR_GREATER` separates the two targets. A previous `#if NET462` meant the net472 build found no files with `-d`, so build both targets.

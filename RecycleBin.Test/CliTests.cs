@@ -144,6 +144,20 @@ public class CliTests
     }
 
     [Test]
+    public void PartlyParsedFileExitsWithOne()
+    {
+        // Format 2 with a header but too short for the name length: parsed with a parse error, which is a failed file
+        var file = Path.Combine(_dir, "$IPART");
+        File.WriteAllBytes(file,
+            File.ReadAllBytes(RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90")).Take(26).ToArray());
+
+        var (exitCode, output) = Run("-f", file);
+
+        exitCode.Should().Be(1);
+        output.Should().Contain("did not parse completely");
+    }
+
+    [Test]
     public void FailedExportExitsWithOne()
     {
         var blocker = Path.Combine(_dir, "blocker");

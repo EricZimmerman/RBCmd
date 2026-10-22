@@ -365,6 +365,12 @@ public class Program
                 Log.Warning("{File}: {ParseError}", file, parseError);
             }
 
+            //a file that did not parse completely is still exported, but it counts as a failed file (exit code 1)
+            if (parseErrors.Count > 0)
+            {
+                _failedFiles.Add($"{file} did not parse completely");
+            }
+
             if (q == false)
             {
                 Console.WriteLine();
