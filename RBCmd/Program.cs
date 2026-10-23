@@ -36,6 +36,8 @@ namespace RBCmd;
 public class Program
 {
     private static List<string> _failedFiles;
+    //files that could not be read (access denied, IO errors): exit code 1. Damaged files are only listed as failed
+    private static int _unreadFiles;
     private static List<CsvOut> _csvOuts;
 
     public static string ActiveDateTimeFormat;
@@ -194,6 +196,7 @@ public class Program
 
         _csvOuts = new List<CsvOut>();
         _failedFiles = new List<string>();
+        _unreadFiles = 0;
 
         var files = new List<string>();
 
@@ -300,7 +303,7 @@ public class Program
             }
         }
 
-        return _failedFiles.Count > 0 ? 1 : 0;
+        return _unreadFiles > 0 ? 1 : 0;
     }
 
     private static string BytesToString(long byteCount)
@@ -321,7 +324,19 @@ public class Program
     {
         try
         {
-            var raw = File.ReadAllBytes(file);
+            byte[] raw;
+            try
+            {
+                raw = File.ReadAllBytes(file);
+            }
+            catch (IOException io)
+            {
+                //the file could not be read (locked, IO error): not a damaged file
+                Log.Error(io, "Unable to read {File}. Error: {Message}", file, io.Message);
+                _failedFiles.Add(file);
+                _unreadFiles++;
+                return;
+            }
 
             // $I files start with a 64-bit format of 1 or 2, INFO2 files with a 32-bit version of 4 or 5
             var format = raw.Length >= 8 ? BitConverter.ToInt64(raw, 0) : -1;
@@ -365,7 +380,7 @@ public class Program
                 Log.Warning("{File}: {ParseError}", file, parseError);
             }
 
-            //a file that did not parse completely is still exported, but it counts as a failed file (exit code 1)
+            //a file that did not parse completely is still exported, and listed as a failed file
             if (parseErrors.Count > 0)
             {
                 _failedFiles.Add($"{file} did not parse completely");
@@ -387,6 +402,7 @@ public class Program
             Log.Error(ua,
                 "Unable to access {File}. Are you running as an administrator? Error: {Message}", file, ua.Message);
             _failedFiles.Add(file);
+            _unreadFiles++;
         }
         catch (Exception ex)
         {

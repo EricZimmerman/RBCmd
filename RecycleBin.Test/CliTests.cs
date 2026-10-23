@@ -122,12 +122,31 @@ public class CliTests
 
     [TestCase(0)]
     [TestCase(10)]
-    public void UnusableFileExitsWithOne(int size)
+    public void UnusableFileExitsWithZero(int size)
     {
+        // A damaged file is not a failure of the tool: it is listed under "Failed files", the exit code is 0
         var file = Path.Combine(_dir, "$IBROKEN");
         File.WriteAllBytes(file, Enumerable.Repeat((byte)0x99, size).ToArray());
 
-        Run("-f", file).ExitCode.Should().Be(1);
+        var (exitCode, output) = Run("-f", file);
+
+        exitCode.Should().Be(0);
+        output.Should().Contain("Failed files");
+    }
+
+    [Test]
+    public void LockedFileExitsWithOne()
+    {
+        var file = Path.Combine(_dir, "$ILOCKED");
+        File.Copy(RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), file);
+
+        using (new FileStream(file, FileMode.Open, FileAccess.Read, FileShare.None))
+        {
+            var (exitCode, output) = Run("-f", file);
+
+            exitCode.Should().Be(1);
+            output.Should().Contain("Unable to read");
+        }
     }
 
     [Test]
@@ -139,21 +158,21 @@ public class CliTests
 
         var (exitCode, output) = Run("-f", file);
 
-        exitCode.Should().Be(1);
+        exitCode.Should().Be(0);
         output.Should().Contain("smaller than the 24 byte $I header");
     }
 
     [Test]
-    public void PartlyParsedFileExitsWithOne()
+    public void PartlyParsedFileExitsWithZero()
     {
-        // Format 2 with a header but too short for the name length: parsed with a parse error, which is a failed file
+        // Format 2 with a header but too short for the name length: parsed with a parse error, listed as a failed file, exit code 0
         var file = Path.Combine(_dir, "$IPART");
         File.WriteAllBytes(file,
             File.ReadAllBytes(RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90")).Take(26).ToArray());
 
         var (exitCode, output) = Run("-f", file);
 
-        exitCode.Should().Be(1);
+        exitCode.Should().Be(0);
         output.Should().Contain("did not parse completely");
     }
 
