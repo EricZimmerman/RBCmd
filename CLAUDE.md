@@ -35,9 +35,9 @@ dotnet run --project RBCmd -f net10.0 -- -d RecycleBin.Test/TestFiles --csv out
 ## CLI
 
 All in `RBCmd/Program.cs`.
-- `Main` awaits `InvokeAsync` and returns `DoWork`'s exit code. Only 0 and 1: 1 is a failure of the tool (invalid arguments, a missing -f/-d path, a file that can't be read: access denied or IO error, or a CSV export that fails); damaged files (unknown header, exceptions while parsing, `ParseErrors`) are listed under "Failed files" and exit 0.
+- `Main` awaits `InvokeAsync` and returns `DoWork`'s exit code. Only 0 and 1: 1 is a failure of the tool (invalid arguments, a missing -f/-d path, a file that can't be read: access denied or IO error, a folder under -d that can't be read, or a CSV export that fails); damaged files (unknown header, exceptions while parsing, `ParseErrors`) are listed under "Failed files" and exit 0.
 - File type is detected from content: Int64 1/2 is `$I`, Int32 4/5 is INFO2.
-- `-d` finds `$I*` and `INFO2` files. On net10.0 this uses `System.IO` enumeration (case-sensitive, inaccessible folders skipped). On net472 it uses AlphaFS with the Backup privilege and skips reparse points.
+- `-d` finds `$I*` and `INFO2` files. On net10.0 this uses a `FileSystemEnumerator` (`FileFinder`, case-sensitive) that reports each folder it can't read ("Unable to read folder <path>: <reason>"), counts it in `_unreadFiles` (exit code 1) and goes on. On net472 it uses AlphaFS with the Backup privilege and skips reparse points; its `ErrorFilter` reports and counts the same way (no `ContinueOnException`: with it AlphaFS never calls `ErrorFilter`).
 - `#if NET9_0_OR_GREATER` separates the two targets. A previous `#if NET462` meant the net472 build found no files with `-d`, so build both targets.
 - `CsvOut` defines the CSV columns. Keep the existing ones in order and add new ones at the end (`Removed` was added in 2026.10.0).
 

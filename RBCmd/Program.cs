@@ -418,18 +418,32 @@ public class Program
 
 
 #if NET9_0_OR_GREATER
-        var enumerationOptions = new EnumerationOptions
+        // Files only: a deleted directory has a $R directory, never a $I one, but don't trip over odd names.
+        // One pass (case-sensitive, as before), $I files first, then INFO2 files. Folders that can't be read are reported
+        // and counted (IgnoreInaccessible skipped them silently)
+        var infos = new List<string>();
+        using (var finder = new FileFinder(dir))
         {
-            IgnoreInaccessible = true,
-            MatchCasing = MatchCasing.CaseSensitive,
-            RecurseSubdirectories = true,
-            AttributesToSkip = 0
-        };
+            while (finder.MoveNext())
+            {
+                if (Path.GetFileName(finder.Current) == "INFO2")
+                {
+                    infos.Add(finder.Current);
+                }
+                else
+                {
+                    files.Add(finder.Current);
+                }
+            }
 
+            foreach (var (folder, reason) in finder.Unreadable)
+            {
+                Log.Error("Unable to read folder {Folder}: {Reason}", folder ?? dir, reason);
+                _unreadFiles++;
+            }
+        }
 
-        // Files only: a deleted directory has a $R directory, never a $I one, but don't trip over odd names
-        files.AddRange(Directory.EnumerateFiles(dir, "$I*", enumerationOptions));
-        files.AddRange(Directory.EnumerateFiles(dir, "INFO2", enumerationOptions));
+        files.AddRange(infos);
 #else
         Privilege[] privs = { Privilege.EnableDelegation, Privilege.Impersonate, Privilege.Tcb };
         using var enabler = new PrivilegeEnabler(Privilege.Backup, privs);
@@ -452,7 +466,9 @@ public class Program
             // Filter to process Exception handling.
             ErrorFilter = delegate(int errorCode, string errorMessage, string pathProcessed)
             {
-                Log.Error("Error accessing {PathProcessed}. Error: {ErrorMessage}", pathProcessed, errorCode);
+                //a folder that can't be read is reported and counted (exit code 1); the rest of the run continues
+                Log.Error("Unable to read folder {Folder}: {Reason}", pathProcessed, errorMessage);
+                _unreadFiles++;
 
                 // Return true to continue, false to throw the Exception.
                 return true;
@@ -472,7 +488,8 @@ public class Program
         };
 
         var dirEnumOptions =
-            DirectoryEnumerationOptions.Files | DirectoryEnumerationOptions.Recursive | DirectoryEnumerationOptions.ContinueOnException |
+            //no ContinueOnException: with it AlphaFS skips folders it can't read without calling ErrorFilter
+            DirectoryEnumerationOptions.Files | DirectoryEnumerationOptions.Recursive |
             DirectoryEnumerationOptions.SkipReparsePoints;
 
         files.AddRange(Directory.EnumerateFileSystemEntryInfos<string>(dir, dirEnumOptions, filters).Where(File.Exists));
@@ -480,6 +497,55 @@ public class Program
 
         return files;
     }
+
+#if NET9_0_OR_GREATER
+    /// <summary>
+    ///     $I* and INFO2 files under a folder, recursively (case-sensitive). Folders that can't be read are skipped and
+    ///     listed in <see cref="Unreadable" /> (a null folder is the root, reported before this class's fields were set)
+    /// </summary>
+    private sealed class FileFinder : System.IO.Enumeration.FileSystemEnumerator<string>
+    {
+        private string _lastRecursed;
+
+        public readonly List<(string Folder, string Reason)> Unreadable = new();
+
+        public FileFinder(string directory) : base(directory,
+            new EnumerationOptions { IgnoreInaccessible = false, RecurseSubdirectories = true, AttributesToSkip = 0 })
+        {
+        }
+
+        protected override bool ShouldRecurseIntoEntry(ref System.IO.Enumeration.FileSystemEntry entry)
+        {
+            //the subfolder is opened right after this: an error in ContinueOnError is about it
+            _lastRecursed = entry.ToFullPath();
+            return true;
+        }
+
+        protected override bool ShouldIncludeEntry(ref System.IO.Enumeration.FileSystemEntry entry)
+        {
+            _lastRecursed = null;
+            if (entry.IsDirectory)
+            {
+                return false;
+            }
+
+            var name = entry.FileName;
+            return name.StartsWith("$I".AsSpan(), StringComparison.Ordinal) || name.SequenceEqual("INFO2".AsSpan());
+        }
+
+        protected override string TransformEntry(ref System.IO.Enumeration.FileSystemEntry entry)
+        {
+            return entry.ToFullPath();
+        }
+
+        protected override bool ContinueOnError(int error)
+        {
+            Unreadable?.Add((_lastRecursed, new System.ComponentModel.Win32Exception(error).Message));
+            _lastRecursed = null;
+            return true;
+        }
+    }
+#endif
 
     private static void DisplayInfo2(Info2 info, bool q, string dt)
     {

@@ -150,6 +150,33 @@ public class CliTests
     }
 
     [Test]
+    public void UnreadableFolderExitsWithOne()
+    {
+        if (!OperatingSystem.IsWindows())
+        {
+            Assert.Ignore("Deny ACEs are Windows only");
+            return;
+        }
+
+        // A folder under -d that can't be read is reported, the rest is processed, and the exit code is 1
+        File.Copy(RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), Path.Combine(_dir, "$I2JRX90"));
+        var denied = Path.Combine(_dir, "denied");
+        Directory.CreateDirectory(denied);
+        File.Copy(RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), Path.Combine(denied, "$IHIDDEN"));
+
+        using (new DeniedFolder(denied))
+        {
+            var (exitCode, output) = Run("-d", _dir, "--csv", Path.Combine(_dir, "csv"), "--csvf", "out.csv", "-q");
+
+            exitCode.Should().Be(1);
+            output.Should().Contain("Unable to read folder").And.Contain("denied");
+            output.Should().Contain("Found 1 files");
+        }
+
+        CsvLines().Should().HaveCount(2);
+    }
+
+    [Test]
     public void TruncatedDollarIIsReported()
     {
         // Format 1 with a header but no name: unusable data is reported, not a crash
