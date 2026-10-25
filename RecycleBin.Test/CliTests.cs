@@ -105,6 +105,46 @@ public class CliTests
     }
 
     [Test]
+    public void ConsoleLog()
+    {
+        //Issues #259: --co saves the console messages to <yyyyMMddHHmmss>_RBCmd_<version>_ConsoleLog.txt in the --csv directory
+        var csv = Path.Combine(_dir, "csv");
+
+        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), "--csv", csv, "--co");
+        exitCode.Should().Be(0, output);
+        var log = Directory.GetFiles(csv, "*_ConsoleLog.txt").Should().ContainSingle().Subject;
+        Path.GetFileName(log).Should().MatchRegex(@"^\d{14}_RBCmd_\d+\.\d+\.\d+_ConsoleLog\.txt$");
+        output.Should().Contain("Console log: " + log);
+        //the same time stamp as the CSV
+        var csvFile = Directory.GetFiles(csv, "*_RBCmd_Output.csv").Should().ContainSingle().Subject;
+        Path.GetFileName(log)[..14].Should().Be(Path.GetFileName(csvFile)[..14]);
+        var text = File.ReadAllText(log);
+        text.Should().MatchRegex(@"\[\d\d:\d\d:\d\d\.\d{3} INF\] RBCmd version ");
+        text.Should().Contain("Command line: -f ");
+        text.Should().Contain("CSV output will be saved to ");
+        text.Should().Contain("Deleted on: 2018-08-07 19:54:58");
+    }
+
+    [Test]
+    public void NoConsoleLogWithoutCo()
+    {
+        var csv = Path.Combine(_dir, "csv");
+
+        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), "--csv", csv);
+        exitCode.Should().Be(0, output);
+        Directory.GetFiles(csv, "*_ConsoleLog.txt").Should().BeEmpty();
+        output.Should().NotContain("Console log:");
+    }
+
+    [Test]
+    public void ConsoleLogWithoutOutputDirectoryWarns()
+    {
+        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), "--co");
+        exitCode.Should().Be(0, output);
+        output.Should().Contain("--co: no output directory was given, so the console messages are not saved");
+    }
+
+    [Test]
     public void MissingArgumentsExitWithOne()
     {
         var (exitCode, output) = Run();

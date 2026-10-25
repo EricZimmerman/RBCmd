@@ -104,6 +104,11 @@ public class Program
             Description = "Show trace information during processing",
             DefaultValueFactory = _ => false
         };
+        var coOpt = new Option<bool>("--co")
+        {
+            Description = "Save all console messages to <timestamp>_RBCmd_<version>_ConsoleLog.txt in the --csv directory",
+            DefaultValueFactory = _ => false
+        };
         
         _rootCommand = new RootCommand
         {
@@ -114,15 +119,15 @@ public class Program
             csvfOpt,
             dtOpt,
             debugOpt,
-            traceOpt
-            
+            traceOpt,
+            coOpt
         };
 
         _rootCommand.Description = Header + "\r\n\r\n" + Footer;
 
         _rootCommand.SetAction(result => DoWork(result.GetValue(dOpt), result.GetValue(fOpt), result.GetValue(qOpt),
             result.GetValue(csvOpt), result.GetValue(csvfOpt), result.GetValue(dtOpt), result.GetValue(debugOpt),
-            result.GetValue(traceOpt)));
+            result.GetValue(traceOpt), result.GetValue(coOpt)));
             
         var exitCode = await _rootCommand.Parse(args).InvokeAsync();
 
@@ -132,7 +137,7 @@ public class Program
     }
 
     /// <returns>0 on success. 1 when arguments are invalid, a file fails or the CSV export fails</returns>
-    private static int DoWork(string d, string f,  bool q, string csv, string csvf, string dt, bool debug, bool trace)
+    private static int DoWork(string d, string f,  bool q, string csv, string csvf, string dt, bool debug, bool trace, bool co)
     {
         ActiveDateTimeFormat = dt;
         
@@ -158,6 +163,14 @@ public class Program
         var conf = new LoggerConfiguration()
             .WriteTo.Console(outputTemplate: template,formatProvider: formatter)
             .MinimumLevel.ControlledBy(levelSwitch);
+
+        var tsNow = DateTimeOffset.UtcNow;
+
+        var consoleLog = co ? ConsoleLog.GetPath(tsNow, csv) : null;
+        if (consoleLog != null)
+        {
+            conf.WriteTo.File(consoleLog, outputTemplate: ConsoleLog.Template, formatProvider: formatter);
+        }
 
         Log.Logger = conf.CreateLogger();
 
@@ -187,6 +200,15 @@ public class Program
         Log.Information("{Header}", Header);
         Console.WriteLine();
         Log.Information("Command line: {Args}", string.Join(" ", Environment.GetCommandLineArgs().Skip(1)));
+
+        if (consoleLog != null)
+        {
+            Log.Information("Console log: {Path}", consoleLog);
+        }
+        else if (co)
+        {
+            Log.Warning("--co: no output directory was given, so the console messages are not saved");
+        }
         
         if (IsAdministrator() == false)
         {
@@ -266,7 +288,7 @@ public class Program
                 return 1;
             }
 
-            var outName = $"{DateTimeOffset.UtcNow:yyyyMMddHHmmss}_RBCmd_Output.csv";
+            var outName = $"{tsNow:yyyyMMddHHmmss}_RBCmd_Output.csv";
 
             if (csvf.IsNullOrEmpty() == false)
             {
@@ -682,8 +704,9 @@ public class Program
         {
             if (arg is DateTimeOffset)
             {
+                //an explicit format (the log templates' {Timestamp:HH:mm:ss.fff}) wins over --dt
                 var size = (DateTimeOffset)arg;
-                return size.ToString(ActiveDateTimeFormat);
+                return size.ToString(string.IsNullOrEmpty(format) ? ActiveDateTimeFormat : format);
             }
 
             var formattable = arg as IFormattable;

@@ -40,6 +40,7 @@ All in `RBCmd/Program.cs`.
 - `-d` finds `$I*` and `INFO2` files. On net10.0 this uses a `FileSystemEnumerator` (`FileFinder`, case-sensitive) that reports each folder it can't read ("Unable to read folder <path>: <reason>"), counts it in `_unreadFiles` (exit code 1) and goes on. On net472 it uses AlphaFS with the Backup privilege and skips reparse points; its `ErrorFilter` reports and counts the same way (no `ContinueOnException`: with it AlphaFS never calls `ErrorFilter`).
 - `#if NET9_0_OR_GREATER` separates the two targets. A previous `#if NET462` meant the net472 build found no files with `-d`, so build both targets.
 - `CsvOut` defines the CSV columns. Keep the existing ones in order and add new ones at the end (`Removed` was added in 2026.10.0).
+- `--co` (Issues #259, opt-in): `ConsoleLog.cs` names `<yyyyMMddHHmmss>_RBCmd_<version>_ConsoleLog.txt` in the `--csv` directory, with the same UTC `tsNow` as the CSV (set at the start of `DoWork`), and `DoWork` adds a Serilog file sink for it under the same level switch and `DateTimeOffsetFormatter`. Its template uses `{Message:l}`, not `:lj` (with `:j` the file sink writes dates as quoted ISO strings instead of `--dt`). Without `--csv` it warns and goes on. The formatter uses an explicit format when one is given (`{Timestamp:HH:mm:ss.fff}`), else `--dt`. `CliTests` covers it.
 
 ## Tests
 
