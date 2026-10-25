@@ -107,10 +107,10 @@ public class CliTests
     [Test]
     public void ConsoleLog()
     {
-        //Issues #259: --co saves the console messages to <yyyyMMddHHmmss>_RBCmd_<version>_ConsoleLog.txt in the --csv directory
+        //Issues #259: --co (on by default) saves the console messages to <yyyyMMddHHmmss>_RBCmd_<version>_ConsoleLog.txt in the --csv directory
         var csv = Path.Combine(_dir, "csv");
 
-        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), "--csv", csv, "--co");
+        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), "--csv", csv);
         exitCode.Should().Be(0, output);
         var log = Directory.GetFiles(csv, "*_ConsoleLog.txt").Should().ContainSingle().Subject;
         Path.GetFileName(log).Should().MatchRegex(@"^\d{14}_RBCmd_\d+\.\d+\.\d+_ConsoleLog\.txt$");
@@ -126,22 +126,23 @@ public class CliTests
     }
 
     [Test]
-    public void NoConsoleLogWithoutCo()
+    public void NoConsoleLogWithCoFalse()
     {
         var csv = Path.Combine(_dir, "csv");
 
-        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), "--csv", csv);
+        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), "--csv", csv, "--co", "false");
         exitCode.Should().Be(0, output);
         Directory.GetFiles(csv, "*_ConsoleLog.txt").Should().BeEmpty();
         output.Should().NotContain("Console log:");
     }
 
     [Test]
-    public void ConsoleLogWithoutOutputDirectoryWarns()
+    public void NoConsoleLogWithoutOutputDirectory()
     {
-        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"), "--co");
+        //nothing to put it beside, and no warning: --co is on by default
+        var (exitCode, output) = Run("-f", RecycleBinTest.Sample("Win10 - DEFCON 2018 Desktop", "$I2JRX90"));
         exitCode.Should().Be(0, output);
-        output.Should().Contain("--co: no output directory was given, so the console messages are not saved");
+        output.Should().NotContain("--co:").And.NotContain("Console log:");
     }
 
     [Test]

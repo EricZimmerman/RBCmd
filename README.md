@@ -33,7 +33,7 @@ Options:
   --dt <dt>       The custom date/time format to use when displaying time stamps. See https://goo.gl/CNVq0k for options [default: yyyy-MM-dd HH:mm:ss]
   --debug         Show debug information during processing
   --trace         Show trace information during processing
-  --co            Save all console messages to <timestamp>_RBCmd_<version>_ConsoleLog.txt in the --csv directory
+  --co            When true, save all console messages to <timestamp>_RBCmd_<version>_ConsoleLog.txt in the --csv directory. Use --co false to turn it off
   -?, -h, --help  Show help and usage information
   --version       Show version information
 ```
@@ -82,7 +82,7 @@ still shown.
 - Console times are UTC like the CSV; out of range time stamps are reported.
 - A file that can't be read (for example locked by another process) is reported as "Unable to read".
 - Exit code 1 when the tool fails (it was always 0). Error reports include source file and line numbers.
-- 2026.10.1: `--co` saves all console messages to `<yyyyMMddHHmmss>_RBCmd_<version>_ConsoleLog.txt` in the `--csv` directory. `--debug` and `--trace` show the time of each message again (they showed the `--dt` date).
+- 2026.10.1: `--co` (on by default; `--co false` turns it off) saves all console messages to `<yyyyMMddHHmmss>_RBCmd_<version>_ConsoleLog.txt` in the `--csv` directory. `--debug` and `--trace` show the time of each message again (they showed the `--dt` date).
 
 The full list is in the [ChangeLog](https://ericzimmerman.github.io/changelog/).
 

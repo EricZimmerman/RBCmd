@@ -106,8 +106,8 @@ public class Program
         };
         var coOpt = new Option<bool>("--co")
         {
-            Description = "Save all console messages to <timestamp>_RBCmd_<version>_ConsoleLog.txt in the --csv directory",
-            DefaultValueFactory = _ => false
+            Description = "When true, save all console messages to <timestamp>_RBCmd_<version>_ConsoleLog.txt in the --csv directory. Use --co false to turn it off",
+            DefaultValueFactory = _ => true
         };
         
         _rootCommand = new RootCommand
@@ -204,10 +204,6 @@ public class Program
         if (consoleLog != null)
         {
             Log.Information("Console log: {Path}", consoleLog);
-        }
-        else if (co)
-        {
-            Log.Warning("--co: no output directory was given, so the console messages are not saved");
         }
         
         if (IsAdministrator() == false)
