@@ -301,10 +301,11 @@ public class Program
 
             try
             {
-                //CsvHelper 34: the same output as 33 (True/False, fields with leading or trailing spaces quoted)
+                //CsvHelper 34: the same output as 33 (True/False; a field that starts or ends with a space is quoted, one with a
+                //tab is not: CsvQuoting.WhenNeededOrWhitespace would quote tabs too)
                 using var csvWriter = CsvWriter.ToFile(outFile, new CsvWriterOptions
                 {
-                    Quoting = CsvQuoting.WhenNeededOrWhitespace,
+                    ShouldQuote = (field, _, _, _) => field.Length > 0 && (field[0] == ' ' || field[field.Length - 1] == ' '),
                     TrueValue = "True",
                     FalseValue = "False"
                 });
