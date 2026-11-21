@@ -1,6 +1,9 @@
+using CsvHelper;
+
 namespace RBCmd;
 
-public class CsvOut
+[CsvRecord]
+public partial class CsvOut
 {
     public string SourceName { get; set; }
     public string FileType { get; set; }

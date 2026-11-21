@@ -18,7 +18,7 @@ using Serilog;
 using Serilog.Core;
 using Serilog.Events;
 using ServiceStack;
-using CsvWriter = CsvHelper.CsvWriter;
+using CsvHelper;
 #if !NET9_0_OR_GREATER
 using Directory = Alphaleonis.Win32.Filesystem.Directory;
 using File = Alphaleonis.Win32.Filesystem.File;
@@ -301,17 +301,15 @@ public class Program
 
             try
             {
-                using var sw1 = new StreamWriter(outFile);
-                using var csvWriter = new CsvWriter(sw1, CultureInfo.InvariantCulture);
-
-                csvWriter.WriteHeader(typeof(CsvOut));
-                csvWriter.NextRecord();
-
-                foreach (var csvOut in _csvOuts)
+                //CsvHelper 34: the same output as 33 (True/False, fields with leading or trailing spaces quoted)
+                using var csvWriter = CsvWriter.ToFile(outFile, new CsvWriterOptions
                 {
-                    csvWriter.WriteRecord(csvOut);
-                    csvWriter.NextRecord();
-                }
+                    Quoting = CsvQuoting.WhenNeededOrWhitespace,
+                    TrueValue = "True",
+                    FalseValue = "False"
+                });
+
+                csvWriter.WriteRecords(_csvOuts);
             }
             catch (Exception ex)
             {
